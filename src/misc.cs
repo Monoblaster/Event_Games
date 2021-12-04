@@ -1,0 +1,133 @@
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "();";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4,%v5);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4,%v5,%v6);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4,%v5,%v6,%v7);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4,%v5,%v6,%v7,%v8);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4,%v5,%v6,%v7,%v8,%v9);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4,%v5,%v6,%v7,%v8,%v9,%v10);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4,%v5,%v6,%v7,%v8,%v9,%v10,%v11);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4,%v5,%v6,%v7,%v8,%v9,%v10,%v11,%v12);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4,%v5,%v6,%v7,%v8,%v9,%v10,%v11,%v12,%v13);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4,%v5,%v6,%v7,%v8,%v9,%v10,%v11,%v12,%v13,%v14);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4,%v5,%v6,%v7,%v8,%v9,%v10,%v11,%v12,%v13,%v14,%v15);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4,%v5,%v6,%v7,%v8,%v9,%v10,%v11,%v12,%v13,%v14,%v15,%v16);";
+$EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4,%v5,%v6,%v7,%v8,%v9,%v10,%v11,%v12,%v13,%v14,%v15,%v16,%v17);";
+
+function SimObject::EventGame_Call(%this, %method, %v0, %v1, %v2, %v3, %v4, %v5, %v6,%v7, %v8, %v9, %v10, %v11, %v12, %v13, %v14, %v15, %v16, %v17)
+{
+    %class = %this.class;
+    if(%class $= "")
+    {
+        %class = %this.getClassName();
+    }
+
+	if(!isFunction(%class,%method))
+    {
+        eventGameWarn("event game function" SPC %class SPC %method SPC "does not exist");
+		return"";
+    }
+
+	%numArguments = 0;
+
+	for(%i = 0; %i < 18; %i++)
+	{
+		if(%v[%i] !$= "")
+			%numArguments = %i + 1;
+	}
+	return eval(%this @ "." @ %method @ $VCE_CALL_LOOKUP[%numArguments]);
+}
+
+
+package EventGames
+{
+    function updateEventGameEventList()
+    {
+        %count = $Server::EventGame::Game[C];
+        for(%i = 0; %i < %count; %i++)
+        {
+            %name = $Server::EventGame::Game[N,%i];
+            %index = $Server::EventGame::Game[I,%name];
+            %group = EventGameHandler.getObject(%index);
+            %gameName = getSafeVariableName(%group.uiName);
+
+            %functionList = "";
+            %functionlistCount = 0;
+            for(%j = 0; %j < 2; %j++)
+            {
+                %typenames[0] = "EventGameType_All";
+                %typenames[1] = %name;
+                
+                %count = $Server::EventGame::Count[%typenames[%j]];
+                for(%k = 0; %k < %count; %k++)
+                {
+                    %functionName = $Server::EventGame::Function["EventGameType_All",%k];
+                    %functionList = trim(%functionList SPC %functionName SPC %functionlistCount);
+                    $Server::EventGame::FunctionList[%name,%functionlistCount++ - 1] = %functionName;
+                }
+            }
+
+            eval("function fxDTSBrick::EventGame" @ %gameName @ "(%brick,%gameName,%gameCommand,%parameters,%client){EventGameHandler.DoCommand(" @ %group @ ",%gamename,$Server::EventGame::FunctionList[" @ %name @ ",%gameCommand],%parameters,%brick,%client);}");
+            registerOutputEvent("fxDTSBrick","EventGame" @ %gameName,"string 200 100" TAB "list" SPC %functionList TAB "string 200 200",true);
+        }
+        
+        %count = clientGroup.getCount();
+        for(%i = 0 ; %i < %count; %i++)
+        {
+            %client = clientGroup.getObject(%i);
+            serverCmdRequestEventTables(%client);
+        }
+    }
+
+    function retrieveEventGameParameters(%game,%parameters)
+    {
+        %parameters = strReplace(%parameters,",","\t");
+        %count = getfieldCount(%parameters);
+        for(%i = 0; %i < 20; %i++)
+        {
+            %field = trim(getField(%parameters,%i));
+            %game.p[%i] = %field;
+        }
+    }
+
+    function collectEventGameBricks(%game,%brickgroup)
+    {
+        %name = %game.name;
+
+        %NTCount = %brickgroup.NT["NameCount"];
+        for(%i = 0; %i < %NTCount; %i++)
+        {
+            %NTName = %brickgroup.NTName[%i];
+            %NTName = getSubStr(%NTName,1,strLen(%NTName) - 1);
+            if(strPos(%NTName,%name) == 0)
+            {
+                %brick = %brickgroup.NT["Object",%NTName,0];
+                %game.NT[%NTName] = %brick;
+            }
+        }
+    }
+
+    function gameBrickFunction(%game,%name,%function, %v0, %v1, %v2, %v3, %v4, %v5, %v6,%v7, %v8, %v9, %v10, %v11, %v12, %v13, %v14, %v15, %v16)
+    {
+        %brick = %game.NT[%game.name @ %name];
+        if(isObject(%brick))
+        {
+            %brick.EventGame_Call(%function, %v0, %v1, %v2, %v3, %v4, %v5, %v6,%v7, %v8, %v9, %v10, %v11, %v12, %v13, %v14, %v15, %v16);
+        }
+        else
+        {
+           eventGameWarn("brick" SPC %game.name @ %name SPC "does not exist");
+        }
+    }
+
+    function eventGameWarn(%text)
+    {
+        warn("Event Games:" SPC %text @ ".");
+    }
+};
+deactivatePackage("EventGames");
+activatePackage("EventGames");
