@@ -124,6 +124,16 @@ package EventGames
         }
     }
 
+    function chatMessagePlayers(%game,%msg)
+    {
+        %playerCount = %game.playerCount;
+        for(%i = 0; %i < %playerCount; %i++)
+        {
+            %client = %game.player[%i];
+            %client.chatMessage(%msg);
+        }
+    }
+
     function eventGameWarn(%text)
     {
         warn("Event Games:" SPC %text @ ".");

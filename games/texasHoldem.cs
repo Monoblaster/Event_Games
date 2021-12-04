@@ -24,16 +24,21 @@ function EventGame_TexasHoldem::NewGame(%this,%brick,%client)
 function EventGame_TexasHoldem::AddPlayer(%this,%brick,%client)
 {
     %thisSeat = %this.playerCount - 1;
-    %this.playerSeat[%this.playerCount - 1] = %thisSeat;
-    %this.seatPlayer[%thisSeat] = %this.playerCount - 1;
-    //once there are more than 1 players start the game
-    %this.CheckStartGame();
+
+    if(%thisSeat >= %this.numSeats)
+    {
+        EventGameHandler.DoCommand(%this.getgroup(),%this.name,"RemovePlayer","",%brick,%client);
+    }
+    else
+    {
+        %this.playerSeat[%this.playerCount - 1] = %thisSeat;
+        %this.seatPlayer[%thisSeat] = %this.playerCount - 1;
+        //once there are more than 1 players start the game
+        %this.CheckStartGame();
+    }    
 }
 
-function EventGame_TexasHoldem::RemovePlayer(%this,%brick,%client)
-{
-    //TODO: check if the game should continue and take this player out of the hand as if they folded
-}
+function EventGame_TexasHoldem::RemovePlayer(%this,%brick,%client){}
 
 function EventGame_TexasHoldem::StartGame(%this)
 {
@@ -140,13 +145,16 @@ function EventGame_TexasHoldem::DealPlayersCards(%this)
     {
         %seat = %this.playerSeat[%i];
         %client = %this.player[%this.seatPlayer[%seat]];
+        %player = %client.player;
         %card1 = %this.DealCard("hand" @ %seat @ 0,true);
         %card2 = %this.DealCard("hand" @ %seat @ 1,true);
 
-        %client.chatMessage(getLongCardName(%card1) SPC "and a" SPC getLongCardName(%card2));
         %this.hand[%seat,0] = %card1;
         %this.hand[%seat,1] = %card2;
-
+        %player.clearCardData();
+        %player.addCard(%card1);
+        %player.addCard(%card2);
+        %this.seatName[%seat] = %client.getPlayerName();
         %this.inHand[%seat] = true;
     }
 }
@@ -154,14 +162,23 @@ function EventGame_TexasHoldem::DealPlayersCards(%this)
 function EventGame_TexasHoldem::startBet(%this)
 {
     %client = %this.player[%this.seatPlayer[%this.currTurn]];
-    %client.chatMessage("The current bet is" SPC %this.currBet @ ". !raise, !call, or !fold.");
-    %this.betting = true;
+    if(%client)
+    {
+        %client.chatMessage("\c5The current bet is" SPC %this.currBet @ ". !raise, !call, or !fold.");
+        %this.betting = true;
+    }
+    else
+    {
+        %this.seatfold(%this.currTurn);
+        %this.nextbet();
+    }
+    
 }
 
 function EventGame_TexasHoldem::nextBet(%this)
 {
     %this.currTurn = %this.getNextSeat(%this.currTurn);
-    if(%this.consecutiveCalls >= %this.playersInHand || %this.playersAllIn >= %this.playersInHand)
+    if(%this.consecutiveCalls >= %this.playersInHand || %this.playersAllIn >= %this.playersInHand || %this.playersInhand == 1)
     {
         %this.endBets();
     }
@@ -186,7 +203,7 @@ function EventGame_TexasHoldem::endBets(%this)
             %this.river[4] = %this.DealCard("river" @ 4,false);
     }
     
-    if(%this.round == 3)
+    if(%this.round == 3 || (%this.playersAllIn >= %this.playersInHand || %this.playersInhand == 1))
     {
         %this.showdown();
     }
@@ -200,6 +217,27 @@ function EventGame_TexasHoldem::endBets(%this)
 
 function EventGame_TexasHoldem::Showdown(%this)
 {
+    %round = %this.round;
+    if(%round == 0)
+    {
+        %this.river[0] = %this.DealCard("river" @ 0,false);
+        %this.river[1] = %this.DealCard("river" @ 1,false);
+        %this.river[2] = %this.DealCard("river" @ 2,false);
+        %round++;
+    }
+    
+    if(%round == 1)
+    {
+        %this.river[3] = %this.DealCard("river" @ 3,false);
+        %round++;
+    }
+
+    if(%round == 2)
+    {
+        %this.river[4] = %this.DealCard("river" @ 4,false);
+        %round++;
+    }
+
     %seatCount = %this.numSeats;
     for(%i = 0; %i < %seatCount; %i++)
     {
@@ -491,19 +529,29 @@ function EventGame_TexasHoldem::SortHands(%this)
     }
 }
 
-function EventGame_TexasHoldem::PrintHand(%this,%hand)
+function EventGame_TexasHoldem::GetHandPrint(%this,%hand)
 {
     for(%i = 0; %i < 5; %i++)
     {
         %cards = trim(%cards SPC getLongCardName(getWord(%hand,%i)));
     }
-    talk(%cards);
+    return %cards;
 }
 
+$Server::TexasHoldem::HandTypeName[1] = "High Card";
+$Server::TexasHoldem::HandTypeName[2] = "One Pair";
+$Server::TexasHoldem::HandTypeName[3] = "Two Pair";
+$Server::TexasHoldem::HandTypeName[4] = "Three of a Kind";
+$Server::TexasHoldem::HandTypeName[5] = "Straight";
+$Server::TexasHoldem::HandTypeName[6] = "Flush";
+$Server::TexasHoldem::HandTypeName[7] = "Full House";
+$Server::TexasHoldem::HandTypeName[8] = "Four of a Kind";
+$Server::TexasHoldem::HandTypeName[9] = "Straight Flush";
 function EventGame_TexasHoldem::HandlePot(%this)
 {
     %seatCount = %this.numSeats;
     %sortedCount = %this.sortedCount;
+    %firstPot = true;
     for(%i = 0; %i < %sortedCount; %i++)
     {
         %seat = %this.sorted[%i];
@@ -524,9 +572,17 @@ function EventGame_TexasHoldem::HandlePot(%this)
 
         if(%totalGain > 0)
         {
+            %pot = "a side";
+            if(%firstPot)
+            {
+                %pot = "the main";
+            }
             %client.setScore(%client.score + %totalGain);
-            %this.printHand(getWords(%this.bestHand[%i],1));
+            chatMessagePlayers(%this,"\c3" @ %this.seatName[%seat] SPC "wins" SPC %pot SPC "pot of" SPC %totalGain SPC "chips with a" SPC $Server::TexasHoldem::HandTypeName[getWord(%this.bestHand[%seat],0)] @ "!");
+            chatMessagePlayers(%this,%this.GetHandPrint(getWords(%this.bestHand[%seat],1)));
+            %firstPot = false;
         }
+        
     }
     
 }
@@ -537,7 +593,7 @@ function EventGame_TexasHoldem::GetNextSeat(%this,%currSeat)
     for(%i = 1; %i <= %seatCount; %i++)
     {
         %checkSeat = mod(%currSeat - %i,%seatCount);
-        if(%this.inHand[%checkSeat])
+        if(%this.inHand[%checkSeat] && !%this.folded[%checkSeat])
         {
             return %checkSeat;
         }
@@ -581,12 +637,14 @@ function EventGame_TexasHoldem::makeRaise(%this,%seat,%value)
             %this.playersAllIn++;
         }
 
-        if(%value == 0)
+        if(%value == 0 && %this.betting)
         {
+            chatMessagePlayers(%this,"\c4" @ %this.seatName[%seat] SPC "\c1calls\c4");
             %this.consecutiveCalls++;
         }
-        else
+        else if (%this.betting)
         {
+            chatMessagePlayers(%this,"\c4" @ %this.seatName[%seat] SPC "\c2raises\c4 by" SPC %value);
             %this.consecutiveCalls = 0;
         }
     }
@@ -607,6 +665,7 @@ function EventGame_TexasHoldem::DealCard(%this,%brickName,%down)
 
 function EventGame_TexasHoldem::SeatFold(%this,%seat)
 {
+    chatMessagePlayers(%this,"\c4" @ %this.seatName[%seat] SPC "\c0folds\c4!");
     %this.folded[%seat] = true;
     %this.playersInHand--;
     gameBrickFunction(%this, "hand" @ %seat @ 0, "removeBrickCard");
@@ -631,7 +690,7 @@ function EventGame_TexasHoldem::serverGameRaise(%this,%client)
         %raiseValue = %this.p0;
         if(%raiseValue < 1)
         {
-            %client.chatMessage("Bet more than 0");
+            %client.chatMessage("\c5Bet more than 0");
         }
         else
         {
@@ -652,8 +711,43 @@ function EventGame_TexasHoldem::ServerGameFold(%this,%client)
     }
 }
 
+function EventGame_TexasHoldem::PeakCards(%this,%seat)
+{
+    %card0 = %this.hand[%seat,0];
+    %card1 = %this.hand[%seat,1];
+    %player = %this.player[%this.seatPlayer[%seat]].player;
+
+    if(!%player.peaking)
+    {
+        gameBrickFunction(%this, "hand" @ %seat @ 0, "removeBrickCard");
+        gameBrickFunction(%this, "hand" @ %seat @ 1, "removeBrickCard");
+
+        %player.peaking = true;
+        %player.displayCards();
+        %player.isCardsVisible = 0;
+        bottomprintCardInfo(%player);
+    }
+}
+
+function EventGame_TexasHoldem::UnPeakCards(%this,%seat)
+{
+    %card0 = %this.hand[%seat,0];
+    %card1 = %this.hand[%seat,1];
+    %player = %this.player[%this.seatPlayer[%seat]].player;
+    
+    if(%player.peaking)
+    {
+        %player.hideCards();
+        %player.peaking = false;
+
+        gameBrickFunction(%this, "hand" @ %seat @ 0, "placeBrickCard",%card0,true);
+        gameBrickFunction(%this, "hand" @ %seat @ 1, "placeBrickCard",%card1,true);
+    }
+}
+
 function fxDTSBrick::placeBrickCard(%brick, %card, %down) {
     %brick.removeBrickCard();
+    serverPlay3D(("cardPlace" @ getRandom(1, 4) @ "Sound"), %brick.getPosition());
     %dir = %brick.itemDirection;
 	if (%dir == 2)
 	{
@@ -693,6 +787,11 @@ function fxDTSBrick::placeBrickCard(%brick, %card, %down) {
 	%cardShape.down = %down;
 
 	cardDisplay(%cardShape, getCardName(%card));
+    //disables card flipping
+    %cardShape.card = "";
+    //makes sure the cards know what seat they are part of (mainly for peeking)
+    %name = %brick.getName();
+    %cardShape.owningSeat = getSubStr(%name,strLen(%name) - 2, 1);
 }
 
 function fxDTSBrick::removeBrickCard(%brick)
@@ -700,6 +799,7 @@ function fxDTSBrick::removeBrickCard(%brick)
     %card = %brick.placedCard;
     if(%card)
     {
+        serverPlay3D(("cardPick" @ getRandom(1, 4) @ "Sound"), %brick.getPosition());
         %card.delete();
         %brick.placedCard = "";
     }
@@ -710,6 +810,7 @@ function fxDTSBrick::flipBrickCard(%brick)
     %card = %brick.placedCard;
     if(%card)
     {
+        serverPlay3D(("cardPick" @ getRandom(1, 4) @ "Sound"), %brick.getPosition());
         %down = %card.down;
         if (%down) {
             %card.playThread(0, cardFaceUp);
@@ -784,5 +885,58 @@ function fxDTSBrick::removeBrickChips(%b) {
 	%b.isDisplayingChips = 0;
 }
 
-//TODO: allow players to pickup and view their cards instead of having them recieved in chat
-//TODO: finish player interaction: messages when someone raises or folds, sound effects, and final scoring announcements 
+package EventGame_texasHoldem
+{
+    function Armor::onTrigger(%this, %obj, %trig, %val) 
+    {
+        %player = %obj;
+		%client = %player.client;
+		%s = getWords(%obj.getEyeTransform(), 0, 2);
+		%masks = $TypeMasks::fxBrickObjectType | $TypeMasks::StaticObjectType | $TypeMasks::TerrainObjectType;
+
+        %ev = %client.currEventGame;
+        if  (%ev.class $= "EventGame_TexasHoldem")
+        {
+            %seat = %ev.playerSeat[%ev.playerIndex[%client]];
+            if (%trig == 0 && %val == 1) 
+            {
+                if(%ev.betting)
+                {
+                    if (!%player.peaking) 
+                    { //Flip card near hit location
+                        %e = vectorAdd(vectorScale(%obj.getEyeVector(), 5), %s);
+                        %ray = containerRaycast(%s, %e, %masks, %obj);
+                        %hitloc = getWords(%ray, 1, 3);
+                    
+                        if (!isObject(getWord(%ray, 0))) {
+                            return;
+                        }
+
+                        initContainerBoxSearch(%hitloc, "0.5 0.5 0.5", $TypeMasks::StaticObjectType | $TypeMasks::ItemObjectType);
+                        %next = containerSearchNext();
+                        if(%next.owningSeat == %seat && %next.owningSeat !$= "")
+                        {
+                            %ev.PeakCards(%seat);
+                            serverPlay3D(("cardPick" @ getRandom(1, 4) @ "Sound"), %next.getPosition());
+                        }
+
+                        return;
+                    }
+                    else if (%player.peaking)
+                    {
+
+                        %ev.UnPeakCards(%seat);
+                        serverPlay3D(("cardPick" @ getRandom(1, 4) @ "Sound"), %next.getPosition());
+
+                        return;
+                    }
+                }
+            }
+        }
+        parent::onTrigger(%this, %obj, %trig, %val);
+    }
+
+};
+deactivatePackage("EventGame_texasHoldem");
+activatePackage("EventGame_texasHoldem");
+//TODO: limmit player numbers by seats
