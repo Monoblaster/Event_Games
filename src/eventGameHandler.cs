@@ -186,7 +186,24 @@ package EventGameHandler
         }
         
     }
-    //TODO: add handles to remove players if they die or leave the server
+    function GameConnection::onDeath(%client, %sourceObject, %sourceClient, %damageType, %damLoc)
+    {
+        %eventGame = %client.currEventGame;
+        if(%eventGame)
+        {
+            EventGameHandler.DoCommand(%eventGame.getGroup(),%eventGame.name,"RemovePlayer","",0,%client);
+        }
+        parent::onDeath(%client, %sourceObject, %sourceClient, %damageType, %damLoc);
+    }
+    function GameConnection::onDrop(%client, %reason)
+    {
+        %eventGame = %client.currEventGame;
+        if(%eventGame)
+        {
+            EventGameHandler.DoCommand(%eventGame.getGroup(),%eventGame.name,"RemovePlayer","",0,%client);
+        }
+        parent::onDrop(%client, %reason);
+    }
 };
 deactivatePackage("EventGameHandler");
 activatePackage("EventGameHandler");
