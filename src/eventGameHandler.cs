@@ -182,7 +182,7 @@ package EventGameHandler
         }
         else
         {
-            parent::serverCmdMessageSent(%client, %text);
+            return parent::serverCmdMessageSent(%client, %text);
         }
         
     }
@@ -193,7 +193,7 @@ package EventGameHandler
         {
             EventGameHandler.DoCommand(%eventGame.getGroup(),%eventGame.name,"RemovePlayer","",0,%client);
         }
-        parent::onDeath(%client, %sourceObject, %sourceClient, %damageType, %damLoc);
+        return parent::onDeath(%client, %sourceObject, %sourceClient, %damageType, %damLoc);
     }
     function GameConnection::onDrop(%client, %reason)
     {
@@ -202,7 +202,7 @@ package EventGameHandler
         {
             EventGameHandler.DoCommand(%eventGame.getGroup(),%eventGame.name,"RemovePlayer","",0,%client);
         }
-        parent::onDrop(%client, %reason);
+        return parent::onDrop(%client, %reason);
     }
 };
 deactivatePackage("EventGameHandler");

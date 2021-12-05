@@ -1,3 +1,4 @@
+$EventGame_Call_Lookup = 0;
 $EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "();";
 $EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0);";
 $EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1);";
@@ -39,7 +40,7 @@ function SimObject::EventGame_Call(%this, %method, %v0, %v1, %v2, %v3, %v4, %v5,
 		if(%v[%i] !$= "")
 			%numArguments = %i + 1;
 	}
-	return eval(%this @ "." @ %method @ $VCE_CALL_LOOKUP[%numArguments]);
+	return eval(%this @ "." @ %method @ $EventGame_Call_Lookup[%numArguments]);
 }
 
 

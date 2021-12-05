@@ -249,7 +249,7 @@ function EventGame_TexasHoldem::Showdown(%this)
     %this.SortHands();
     %this.HandlePot();
 
-    %this.schedule(10000,"StartGame");
+    %this.schedule(10000,"CheckStartGame");
 }
 
 function EventGame_TexasHoldem::serverGameCall(%this,%client)
