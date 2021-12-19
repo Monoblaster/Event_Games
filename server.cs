@@ -8,6 +8,7 @@ function eventGameInit()
             class = "EventGameHandler";
         };
         %new.setname("EventGameHandler");
+        MissionCleanup.add(EventGameHandler);
     }
     $Server::EventGame::Initliazed = true;
 }

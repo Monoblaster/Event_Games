@@ -3,7 +3,7 @@ function EventGame_TexasHoldem::DetermineBestHands(%this)
     %numSeats = %this.numSeats;
     for(%i = 0; %i < %numSeats; %i++)
     {
-        if(%this.inHand[%i] && !%this.folded[%i])
+        if(%this.seatInHand[%i] && !%this.seatFolded[%i])
         {
             $Server::TexasHoldem::BestHand = "";
             %this.bestHand[%i] = %this.getBestHand(%i);
@@ -239,7 +239,7 @@ function EventGame_TexasHoldem::SortHands(%this)
     %sortedCount = 0;
     for (%i = 0; %i < %numSeats; %i++)
     {
-        if(%this.inHand[%i] && !%this.folded[%i])
+        if(%this.seatInHand[%i] && !%this.seatFolded[%i])
         {
             %value = %this.bestHand[%i];
 

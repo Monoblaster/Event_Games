@@ -103,13 +103,50 @@ package EventGames
         for(%i = 0; %i < %NTCount; %i++)
         {
             %NTName = %brickgroup.NTName[%i];
-            %NTName = getSubStr(%NTName,1,strLen(%NTName) - 1);
-            if(strPos(%NTName,%name) == 0)
+
+            if(strPos(%NTName,%name) == 1)
             {
-                %brick = %brickgroup.NT["Object",%NTName,0];
-                %game.NT[%NTName] = %brick;
+                %brick = %brickgroup.NTOBject[%NTName,0];
+                collectEventGameBrickParameters(%game,%NTName);
+                %game.NT[stripEventGameParameters(%NTName)] = %brick;
             }
         }
+    }
+
+    function collectEventGameBrickParameters(%game,%name)
+    {
+        %strippedName = stripEventGameParameters(%name);
+		%strippedParameters = strReplace(stripEventGameBrickName(%name),"APOS","\t");
+        %count = getFieldCount(%strippedParameters);
+        for(%i = 0; %i < %count; %i++)
+        {
+            %game.PT[%strippedName,%i] = strReplace(getField(%strippedParameters,%i),"DASH","-");
+        }
+        
+    }
+
+	function stripEventGameParameters(%name)
+    {
+		%end = strPos(%name,"APOS") - 1;
+		
+		if(%end == -1)
+		{
+			%end = strLen(%name);
+		}
+
+        return getSubStr(%name,1, %end);
+    }
+
+	function stripEventGameBrickName(%name)
+    {
+		%start = strPos(%name,"APOS") + 4;
+		
+		if(%start == 3)
+		{
+			%start = strLen(%name);
+		}
+
+        return getSubStr(%name,%start,strLen(%name) - %start);
     }
 
     function gameBrickFunction(%game,%name,%function, %v0, %v1, %v2, %v3, %v4, %v5, %v6,%v7, %v8, %v9, %v10, %v11, %v12, %v13, %v14, %v15, %v16)

@@ -4,7 +4,7 @@ function EventGame_TexasHoldem::GetNextSeat(%this,%currSeat)
     for(%i = 1; %i <= %seatCount; %i++)
     {
         %checkSeat = mod(%currSeat - %i,%seatCount);
-        if(%this.inHand[%checkSeat] && !%this.folded[%checkSeat])
+        if(%this.seatInHand[%checkSeat] && !%this.seatFolded[%checkSeat] && !%this.seatAllIn[%checkSeat])
         {
             return %checkSeat;
         }
@@ -20,68 +20,15 @@ function EventGame_TexasHoldem::GetRandomOccupiedSeat(%this)
     return %this.playerSeat[getRandom(0,%this.playerCount - 1)];
 }
 
-function EventGame_TexasHoldem::makeRaise(%this,%seat,%value)
-{
-    //are you the only remaining person not all in?
-    %client = %this.player[%this.seatPlayer[%seat]];
-    if((%this.playersAllIn + 1) == %this.playersInHand && !%this.AllIn[%seat])
-    {
-        %newBet = %this.currBet;
 
-        if(%newBet >= %client.score)
-        {
-            %this.allIn[%seat] = true;
-            %newBet = %client.score;
-        }
 
-        %this.playersAllIn++;
-    }
-    else
-    {
-        %bet = %this.currBet;
-        %newBet = %bet + %value;
-
-        if(%newBet >= %client.score)
-        {
-            %newBet = %client.score;
-            %this.allIn[%seat] = true;
-            %this.playersAllIn++;
-        }
-
-        if(%value == 0 && %this.betting)
-        {
-            chatMessagePlayers(%this,"\c4" @ %this.seatName[%seat] SPC "\c1calls\c4");
-            %this.consecutiveCalls++;
-        }
-        else if (%this.betting)
-        {
-            chatMessagePlayers(%this,"\c4" @ %this.seatName[%seat] SPC "\c2raises\c4 by" SPC %value);
-            %this.consecutiveCalls = 0;
-        }
-    }
-    
-    %client.setScore(%client.score - (%newBet - %this.seatBet[%seat]));
-    %this.seatBet[%seat] = %newBet;
-    gameBrickFunction(%this, "bet" @ %seat, "createBrickChips",%newBet);
-
-    %this.currBet = %newBet;
-}
-
-function EventGame_TexasHoldem::DealCard(%this,%brickName,%down)
+function EventGame_TexasHoldem::DealCard(%this,%brickName,%slot,%down)
 {
     %card = %this.deck.removeCard();
-    gameBrickFunction(%this, %brickname, "placeBrickCard",%card,%down);
+    gameBrickFunction(%this, %brickname, "placeBrickCard",%slot,%card,%down);
     return %card;
 }
 
-function EventGame_TexasHoldem::SeatFold(%this,%seat)
-{
-    chatMessagePlayers(%this,"\c4" @ %this.seatName[%seat] SPC "\c0folds\c4!");
-    %this.folded[%seat] = true;
-    %this.playersInHand--;
-    gameBrickFunction(%this, "hand" @ %seat @ 0, "removeBrickCard");
-    gameBrickFunction(%this, "hand" @ %seat @ 1, "removeBrickCard");
-}
 function EventGame_TexasHoldem::PeakCards(%this,%seat)
 {
     %card0 = %this.hand[%seat,0];
@@ -90,8 +37,8 @@ function EventGame_TexasHoldem::PeakCards(%this,%seat)
 
     if(!%player.peaking)
     {
-        gameBrickFunction(%this, "hand" @ %seat @ 0, "removeBrickCard");
-        gameBrickFunction(%this, "hand" @ %seat @ 1, "removeBrickCard");
+        gameBrickFunction(%this, "hand" @ %seat, "removeBrickCard",0);
+        gameBrickFunction(%this, "hand" @ %seat, "removeBrickCard",1);
 
         %player.peaking = true;
         %player.displayCards();
@@ -111,74 +58,94 @@ function EventGame_TexasHoldem::UnPeakCards(%this,%seat)
         %player.hideCards();
         %player.peaking = false;
 
-        gameBrickFunction(%this, "hand" @ %seat @ 0, "placeBrickCard",%card0,true);
-        gameBrickFunction(%this, "hand" @ %seat @ 1, "placeBrickCard",%card1,true);
+        gameBrickFunction(%this, "hand" @ %seat, "placeBrickCard",0,%card0,true);
+        gameBrickFunction(%this, "hand" @ %seat, "placeBrickCard",1,%card1,true);
     }
 }
 
-function fxDTSBrick::placeBrickCard(%brick, %card, %down) {
-    %brick.removeBrickCard();
-    serverPlay3D(("cardPlace" @ getRandom(1, 4) @ "Sound"), %brick.getPosition());
-    %dir = %brick.itemDirection;
-	if (%dir == 2)
-	{
-		%rot = "0 0 1 0";
-	}
-	else if (%dir == 3)
-	{
-		%rot = "0 0 1 " @ $piOver2;
-	}
-	else if (%dir == 4)
-	{
-		%rot = "0 0 -1 " @ $pi;
-	}
-	else if (%dir == 5)
-	{
-		%rot = "0 0 -1 " @ $piOver2;
-	}
-	else 
-	{
-		%rot = "0 0 1 0";
-	}
+function fxDTSBrick::setupPlayerTexasHoldemDisplay(%brick,%game,%seat)
+{
+    %brick.seat = seat;
+    %forwardVector = vectorNormalize(%game.PT[stripEventGameParameters(%brick.getname()),0] SPC %game.PT[stripEventGameParameters(%brick.getname()),1] SPC %game.PT[stripEventGameParameters(%brick.getname()),2]);
+   
+    %rotation = vectorToRotUp(vectorRotate(%forwardVector,"0 0 1", $PI / 2));
+    %Center = vectorSub(%brick.getPosition(),"0 0 " @ %brick.dataBlock.brickSizeZ/ 10);
 
-    %pos = vectorAdd(%brick.getPosition(),"0 0 " @ %brick.dataBlock.brickSizeZ/ 10);
+    %seperation = 0.19;
+
+    //cards
+    %brick.cardTransform0 = vectorAdd(vectorRotate(vectorScale(%forwardVector, %seperation), "0 0 1",  $PI / 2),%Center) SPC %rotation;
+    %brick.cardTransform1 = vectorAdd(vectorRotate(vectorScale(%forwardVector, %seperation), "0 0 1", -$PI / 2),%Center) SPC %rotation;
+    //betted chips
+    %brick.betPos = vectorAdd(vectorRotate(vectorScale(%forwardVector, 0.5), "0 0 1",  $PI / 4),%Center);
+
+    //chip
+    %brick.chipPos = vectorAdd(vectorRotate(vectorScale(%forwardVector, 0.7), "0 0 1",  -$PI / 6),%Center);
+}
+
+function fxDTSBrick::setupCommunityCardsTexasHoldemDDisplay(%brick,%game)
+{
+    %forwardVector = vectorNormalize(%game.PT[stripEventGameParameters(%brick.getname()),0] SPC %game.PT[stripEventGameParameters(%brick.getname()),1] SPC %game.PT[stripEventGameParameters(%brick.getname()),2]);
+    %rotation = vectorToRotUp(vectorRotate(%forwardVector,"0 0 1", $PI / 2));
+    %center = vectorSub(%brick.getPosition(),"0 0 " @ %brick.dataBlock.brickSizeZ/ 10);
+
+    %seperation = 0.4;
+    //cards
+    %brick.cardTransform0 = vectorAdd(vectorRotate(vectorScale(%forwardVector, %seperation * 2), "0 0 1",  $PI / 2),%Center) SPC %rotation;
+    %brick.cardTransform1 = vectorAdd(vectorRotate(vectorScale(%forwardVector, %seperation), "0 0 1", $PI / 2),%Center) SPC %rotation;
+    %brick.cardTransform2 = vectorAdd(vectorScale(%forwardVector, 0),%Center) SPC %rotation;
+    %brick.cardTransform3 = vectorAdd(vectorRotate(vectorScale(%forwardVector, %seperation), "0 0 1", -$PI / 2),%Center) SPC %rotation;
+    %brick.cardTransform4 = vectorAdd(vectorRotate(vectorScale(%forwardVector, %seperation * 2), "0 0 1", -$PI / 2),%Center) SPC %rotation;
+   
+}
+
+function fxDTSBrick::placeBrickCard(%brick, %slot, %card, %down) {
+    %brick.removeBrickCard(%slot);
+    %brickName = %brick.getName();
+    serverPlay3D(("cardPlace" @ getRandom(1, 4) @ "Sound"), %brick.getPosition());
 	
 	%cardShape = new StaticShape(CardShapes) {
 		dataBlock = CardShape;
 		card = %card;
 	};
-    %brick.placedCard = %cardShape;
-	%cardShape.setTransform(%pos SPC %rot);
+    %brick.placedCard[%slot] = %cardShape;
+
+    %handStrPos = striPos(%brickName,"hand");
+    if(%handStrPos != -1)
+    {
+        %cardShape.owningSeat = getSubStr(%brickName, %handStrPos + 4, 1);
+    }
+
+    %cardShape.brick = %brick;
+	%cardShape.setTransform(%brick.cardTransform[%slot]);
+
 	if (!%down) {
 		%cardShape.playThread(0, cardFaceUp);
 	} else {
 		%cardShape.playThread(0, cardFaceDown);
 	}
 
-	%cardShape.down = %down;
+	%cardShape.down[%slot] = %down;
 
 	cardDisplay(%cardShape, getCardName(%card));
     //disables card flipping
     %cardShape.card = "";
-    //makes sure the cards know what seat they are part of (mainly for peeking)
-    %name = %brick.getName();
-    %cardShape.owningSeat = getSubStr(%name,strLen(%name) - 2, 1);
 }
 
-function fxDTSBrick::removeBrickCard(%brick)
+function fxDTSBrick::removeBrickCard(%brick,%slot)
 {
-    %card = %brick.placedCard;
+    %card = %brick.placedCard[%slot];
     if(%card)
     {
         serverPlay3D(("cardPick" @ getRandom(1, 4) @ "Sound"), %brick.getPosition());
+        %brick.placedCard[%slot] = "";
         %card.delete();
-        %brick.placedCard = "";
     }
 }
 
-function fxDTSBrick::flipBrickCard(%brick)
+function fxDTSBrick::flipBrickCard(%brick,%slot)
 {
-    %card = %brick.placedCard;
+    %card = %brick.placedCard[%slot];
     if(%card)
     {
         serverPlay3D(("cardPick" @ getRandom(1, 4) @ "Sound"), %brick.getPosition());
@@ -197,7 +164,7 @@ function fxDTSBrick::createBrickChips(%b,%value)
 		%b.removeBrickChips();
 		return;
 	}
-	%loc = vectorAdd(%b.getPosition(), "0 0 " @ %b.getDatablock().brickSizeZ * 0.1);
+	%loc = %b.betPos;
 
 	%chipVector = getChipCounts(%value);
 	%count = 0;
@@ -256,6 +223,29 @@ function fxDTSBrick::removeBrickChips(%b) {
 	%b.isDisplayingChips = 0;
 }
 
+function fxDTSBrick::createBrickDealerChip(%brick,%type)
+{
+    if(%brick.dealerChip)
+    {
+        %brick.dealerChip.delete();
+    }
+
+    %brick.dealerChip = new StaticShape(ChipDisplayShapes) {
+        datablock = ChipShape;
+    };
+    %color[1] = "0.7 0.7 0.7 1";
+    %color[2] = "1 0 0 1";
+    %color[3] = "1 0 0 1";
+    %scale[1] = "1.5 1.5 1";
+    %scale[2] = "1.5 1.5 1";
+    %scale[3] = "1.5 1.5 2";
+
+    %brick.dealerChip.setNodeColor("ALL", %color[%type]);
+    %brick.dealerChip.setScale(%scale[%type]);
+
+    %brick.dealerChip.setTransform(%brick.chipPos);
+}
+
 package EventGame_texasHoldem
 {
     function Armor::onTrigger(%this, %obj, %trig, %val) 
@@ -279,19 +269,17 @@ package EventGame_texasHoldem
                         %ray = containerRaycast(%s, %e, %masks, %obj);
                         %hitloc = getWords(%ray, 1, 3);
                     
-                        if (!isObject(getWord(%ray, 0))) {
-                            return;
-                        }
+                        if (isObject(getWord(%ray, 0))) {
+                            initContainerBoxSearch(%hitloc, "0.5 0.5 0.5", $TypeMasks::StaticObjectType | $TypeMasks::ItemObjectType);
+                            %next = containerSearchNext();
+                            if(%next.owningSeat == %seat && %next.owningSeat !$= "")
+                            {
+                                %ev.PeakCards(%seat);
+                                serverPlay3D(("cardPick" @ getRandom(1, 4) @ "Sound"), %next.getPosition());
 
-                        initContainerBoxSearch(%hitloc, "0.5 0.5 0.5", $TypeMasks::StaticObjectType | $TypeMasks::ItemObjectType);
-                        %next = containerSearchNext();
-                        if(%next.owningSeat == %seat && %next.owningSeat !$= "")
-                        {
-                            %ev.PeakCards(%seat);
-                            serverPlay3D(("cardPick" @ getRandom(1, 4) @ "Sound"), %next.getPosition());
+                                return;
+                            } 
                         }
-
-                        return;
                     }
                     else if (%player.peaking)
                     {

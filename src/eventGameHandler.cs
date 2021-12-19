@@ -32,17 +32,20 @@ function EventGameHandler::DoCommand(%this,%group,%gameName,%gameCommand,%parame
 {
     if(isFunction("EventGameHandler",%gameCommand))
     {
-        %this.EventGame_Call(%gameCommand,%group,%gameName,%brick,%client);
+        %this.EventGame_Call(%gameCommand,%group,%gameName,%parameters,%brick,%client);
+    }
+    else
+    {
+        %group.DoCommand(%gameName,%gameCommand,%parameters,%brick,%client);
     }
     
-    %group.DoCommand(%gameName,%gameCommand,%parameters,%brick,%client);
 }
 
-function EventGameHandler::NewGame(%this,%group,%gameName,%brick,%client)
+function EventGameHandler::NewGame(%this,%group,%gameName,%parameters,%brick,%client)
 {
     if((%i = $Server::EventGame::Game[%group.class,%gameName]) !$= "")
     {
-        EventGameHandler.DoCommand(%group,%gameName,"EndGame","",%brick,%client);
+        return;
     }
 
     %new = new scriptObject()
@@ -60,11 +63,13 @@ function EventGameHandler::NewGame(%this,%group,%gameName,%brick,%client)
     %brickGroup = %brick.getGroup();
     collectEventGameBricks(%new,%brickgroup);
 
-    return true;
+    %group.DoCommand(%GameName,"NewGame",%parameters,%brick,%client);
 }
 
-function EventGameHandler::EndGame(%this,%group,%gameName,%brick,%client)
+function EventGameHandler::EndGame(%this,%group,%gameName,%parameters,%brick,%client)
 {
+    %group.DoCommand(%GameName,"EndGame",%parameters,%brick,%client);
+
     if((%i = $Server::EventGame::Game[%group.class,%gameName]) !$= "")
     {
         %game = %group.getObject(%i);
@@ -73,6 +78,7 @@ function EventGameHandler::EndGame(%this,%group,%gameName,%brick,%client)
         for(%j = 0; %j < %count; %j++)
         {
             %currClient = %game.player[%j];
+            %currClient.currEventGame = "";
             %this.DoCommand(%group,%gameName,"RemovePlayer","",%brick,%currClient);
         }
         $Server::EventGame::Game[%group.class,%gameName] = "";
@@ -86,14 +92,10 @@ function EventGameHandler::EndGame(%this,%group,%gameName,%brick,%client)
             %name = %group.getObject(%j);
             $Server::EventGame::Game[%group.class,%name] = %j;
         }
-
-        return true;
     }
-
-    return false;
 }
 
-function EventGameHandler::AddPlayer(%this,%group,%gameName,%brick,%client)
+function EventGameHandler::AddPlayer(%this,%group,%gameName,%parameters,%brick,%client)
 {
     if((%i = $Server::EventGame::Game[%group.class,%gameName]) !$= "")
     {
@@ -103,8 +105,8 @@ function EventGameHandler::AddPlayer(%this,%group,%gameName,%brick,%client)
 
         if(%currGame)
         {
-            //TODO: send error to player
-            return false;
+            %client.centerPrint("\c6You are already in a game. Type !leave and try again",2);
+            return;
         }
 
         %client.currEventGame = %game;
@@ -114,24 +116,24 @@ function EventGameHandler::AddPlayer(%this,%group,%gameName,%brick,%client)
         %game.playerIndex[%client] = %count;
         %game.playerCount++;
     
-        return true;
     }
 
-    return false;
+    %group.DoCommand(%GameName,"AddPlayer",%parameters,%brick,%client);
 }
 
-function EventGameHandler::RemovePlayer(%this,%group,%gameName,%brick,%client)
+function EventGameHandler::RemovePlayer(%this,%group,%gameName,%parameters,%brick,%client)
 {
+    %group.DoCommand(%gameName,"RemovePlayer",%parameters,%brick,%client);
+
     if((%i = $Server::EventGame::Game[%group.class,%gameName]) !$= "")
     {
         %game = %group.getObject(%i);
 
         %currGame = %client.currEventGame;
 
-        if(!%currGame)
+        if(%currGame != %game)
         {
-            //TODO: send error to player
-            return false;
+            return;
         }
 
         %client.currEventGame = "";
@@ -139,14 +141,12 @@ function EventGameHandler::RemovePlayer(%this,%group,%gameName,%brick,%client)
         %count = %game.playerCount + 0;
         for(%j = %i; %j < %count; %j++)
         {
-            %count.player[%j] = %count.player[%j + 1];
+            %player = %game.player[%j + 1];
+            %game.player[%j] = %player;
+            %game.playerIndex[%player] = %j;
         }
         %game.playerCount--;
-        
-        return true;
     }
-
-    return false;
 }
 
 function EventGameHandler::DoServerGameCommand(%this,%group,%game,%gameCommand,%parameters,%client)
@@ -157,15 +157,19 @@ function EventGameHandler::DoServerGameCommand(%this,%group,%game,%gameCommand,%
         %this.EventGame_Call("ServerGame" @ %gameCommand,%group,%game,%client);
         %isCommand = true;
     }
-    %isCommand = %isCommand || %group.DoServerGameCommand(%game,%gameCommand,%parameters,%client);
+    else
+    {
+        %isCommand = %group.DoServerGameCommand(%game,%gameCommand,%parameters,%client);
+    }
 
     return %isCommand;
 }
 
-function EventGameHandler::serverGameLeave(%this,%group,%game,%client)
+function EventGameHandler::serverGameLeave(%this,%group,%game,%parameters,%client)
 {
-    %client.chatMessage("You have left the game");
-    %this.DoCommand(%group,%game.name,"RemovePlayer","",%game.currBrick,%client);
+    %group.DoServerGameCommand(%game,%gameCommand,%parameters,%client);
+
+    %this.DoCommand(%group,%game.name,"RemovePlayer","",%game.currBrick,%client);    
 }
 
 package EventGameHandler
