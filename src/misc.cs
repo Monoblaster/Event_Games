@@ -103,7 +103,6 @@ package EventGames
         for(%i = 0; %i < %NTCount; %i++)
         {
             %NTName = %brickgroup.NTName[%i];
-
             if(strPos(%NTName,%name) == 1)
             {
                 %brick = %brickgroup.NTOBject[%NTName,0];
@@ -129,7 +128,7 @@ package EventGames
     {
 		%end = strPos(%name,"APOS") - 1;
 		
-		if(%end == -1)
+		if(%end == -2)
 		{
 			%end = strLen(%name);
 		}

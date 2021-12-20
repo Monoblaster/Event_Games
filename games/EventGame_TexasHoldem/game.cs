@@ -137,6 +137,7 @@ function EventGame_TexasHoldem::cleanTable(%this)
         gameBrickFunction(%this, "hand" @ %i, "removeBrickCard",0);
         gameBrickFunction(%this, "hand" @ %i, "removeBrickCard",1);
         gameBrickFunction(%this, "hand" @ %i, "removeBrickChips");
+        gameBrickFunction(%this, "hand" @ %i, "createBrickDealerChip",0);
     }
 
     for(%i = 0; %i < 5; %i++)

@@ -228,6 +228,12 @@ function fxDTSBrick::createBrickDealerChip(%brick,%type)
     if(%brick.dealerChip)
     {
         %brick.dealerChip.delete();
+        %brick.dealerChip = "";
+    }
+
+    if(%type == 0)
+    {
+        return;
     }
 
     %brick.dealerChip = new StaticShape(ChipDisplayShapes) {
