@@ -22,11 +22,25 @@ function EventGame_TexasHoldem::GetRandomOccupiedSeat(%this)
 
 
 
-function EventGame_TexasHoldem::DealCard(%this,%brickName,%slot,%down)
+function EventGame_TexasHoldem::DealCard(%this,%brickName,%slot,%down,%delay)
 {
-    %card = %this.deck.removeCard();
-    gameBrickFunction(%this, %brickname, "placeBrickCard",%slot,%card,%down);
-    return %card;
+    %currCard = gameBrickFunction(%this,%brickName,"getBrickCard",%slot);
+    if(%currCard $= "")
+    {
+        %card = %this.deck.removeCard();
+        schedule(%delay,%this,"gameBrickFunction",%this, %brickname, "placeBrickCard",%slot,%card,%down);
+        return %card;
+    }
+    return "";
+}
+
+function EventGame_TexasHoldem::RemoveCard(%this,%brickName,%slot,%delay)
+{
+    %card = gameBrickFunction(%this,%brickName,"getBrickCard",%slot);
+    if(%card !$= "")
+    {
+        schedule(%delay,%this,"gameBrickFunction",%this, %brickname, "removeBrickCard",%slot);
+    }
 }
 
 function EventGame_TexasHoldem::PeakCards(%this,%seat)
@@ -66,40 +80,44 @@ function EventGame_TexasHoldem::UnPeakCards(%this,%seat)
 function fxDTSBrick::setupPlayerTexasHoldemDisplay(%brick,%game,%seat)
 {
     %brick.seat = seat;
-    %forwardVector = vectorNormalize(%game.PT[stripEventGameParameters(%brick.getname()),0] SPC %game.PT[stripEventGameParameters(%brick.getname()),1] SPC %game.PT[stripEventGameParameters(%brick.getname()),2]);
-   
-    %rotation = vectorToRotUp(vectorRotate(%forwardVector,"0 0 1", $PI / 2));
+
+    %eulerRotation = %game.PT[stripEventGameParameters(%brick.getname()),0] + 0;
+    %radRotation = %eulerRotation * ($PI / 180);
     %Center = vectorSub(%brick.getPosition(),"0 0 " @ %brick.dataBlock.brickSizeZ/ 10);
 
     %seperation = 0.19;
 
     //cards
-    %brick.cardTransform0 = vectorAdd(vectorRotate(vectorScale(%forwardVector, %seperation), "0 0 1",  $PI / 2),%Center) SPC %rotation;
-    %brick.cardTransform1 = vectorAdd(vectorRotate(vectorScale(%forwardVector, %seperation), "0 0 1", -$PI / 2),%Center) SPC %rotation;
+    %brick.gameSetNode("card0", vectorAdd(vectorRotate("0.19 0 0","0 0 1", %radRotation),%center), %eulerRotation);
+    %brick.gameSetNode("card1", vectorAdd(vectorRotate("-0.19 0 0","0 0 1", %radRotation),%center), %eulerRotation);
     //betted chips
-    %brick.betPos = vectorAdd(vectorRotate(vectorScale(%forwardVector, 0.5), "0 0 1",  $PI / 4),%Center);
+    %brick.gameSetNode("bet", vectorAdd(vectorRotate("0.4 0.5 0","0 0 1",%radRotation),%center), %eulerRotation);
 
     //chip
-    %brick.chipPos = vectorAdd(vectorRotate(vectorScale(%forwardVector, 0.7), "0 0 1",  -$PI / 6),%Center);
+    %brick.gameSetNode("chip", vectorAdd(vectorRotate("-0.3 0.6 0","0 0 1",%radRotation),%center), %eulerRotation);
 }
 
 function fxDTSBrick::setupCommunityCardsTexasHoldemDDisplay(%brick,%game)
 {
-    %forwardVector = vectorNormalize(%game.PT[stripEventGameParameters(%brick.getname()),0] SPC %game.PT[stripEventGameParameters(%brick.getname()),1] SPC %game.PT[stripEventGameParameters(%brick.getname()),2]);
-    %rotation = vectorToRotUp(vectorRotate(%forwardVector,"0 0 1", $PI / 2));
-    %center = vectorSub(%brick.getPosition(),"0 0 " @ %brick.dataBlock.brickSizeZ/ 10);
+    %eulerRotation = %game.PT[stripEventGameParameters(%brick.getname()),0] + 0;
+    %radRotation = %eulerRotation * ($PI / 180);
+    %Center = vectorSub(%brick.getPosition(),"0 0 " @ %brick.dataBlock.brickSizeZ/ 10);
 
-    %seperation = 0.4;
     //cards
-    %brick.cardTransform0 = vectorAdd(vectorRotate(vectorScale(%forwardVector, %seperation * 2), "0 0 1",  $PI / 2),%Center) SPC %rotation;
-    %brick.cardTransform1 = vectorAdd(vectorRotate(vectorScale(%forwardVector, %seperation), "0 0 1", $PI / 2),%Center) SPC %rotation;
-    %brick.cardTransform2 = vectorAdd(vectorScale(%forwardVector, 0),%Center) SPC %rotation;
-    %brick.cardTransform3 = vectorAdd(vectorRotate(vectorScale(%forwardVector, %seperation), "0 0 1", -$PI / 2),%Center) SPC %rotation;
-    %brick.cardTransform4 = vectorAdd(vectorRotate(vectorScale(%forwardVector, %seperation * 2), "0 0 1", -$PI / 2),%Center) SPC %rotation;
-   
+    %brick.gameSetNode("card0", vectorAdd(vectorRotate("0.8 0 0","0 0 1", %radRotation),%center), %eulerRotation);
+    %brick.gameSetNode("card1", vectorAdd(vectorRotate("0.4 0 0","0 0 1", %radRotation),%center), %eulerRotation);
+    %brick.gameSetNode("card2", vectorAdd("0 0 0",%center), %eulerRotation);
+    %brick.gameSetNode("card3", vectorAdd(vectorRotate("-0.4 0 0","0 0 1", %radRotation),%center), %eulerRotation);
+    %brick.gameSetNode("card4", vectorAdd(vectorRotate("-0.8 0 0","0 0 1", %radRotation),%center), %eulerRotation);
 }
 
-function fxDTSBrick::placeBrickCard(%brick, %slot, %card, %down) {
+function fxDTSBrick::getBrickCard(%brick,%slot)
+{
+    return %brick.placedCard[%slot];
+}
+
+function fxDTSBrick::placeBrickCard(%brick, %slot, %card, %down) 
+{
     %brick.removeBrickCard(%slot);
     %brickName = %brick.getName();
     serverPlay3D(("cardPlace" @ getRandom(1, 4) @ "Sound"), %brick.getPosition());
@@ -117,7 +135,7 @@ function fxDTSBrick::placeBrickCard(%brick, %slot, %card, %down) {
     }
 
     %cardShape.brick = %brick;
-	%cardShape.setTransform(%brick.cardTransform[%slot]);
+	%cardShape.setTransform(%brick.gameGetNode("card" @ %slot));
 
 	if (!%down) {
 		%cardShape.playThread(0, cardFaceUp);
@@ -164,7 +182,7 @@ function fxDTSBrick::createBrickChips(%b,%value)
 		%b.removeBrickChips();
 		return;
 	}
-	%loc = %b.betPos;
+	%loc = %b.gameGetNode("bet");
 
 	%chipVector = getChipCounts(%value);
 	%count = 0;
@@ -249,7 +267,7 @@ function fxDTSBrick::createBrickDealerChip(%brick,%type)
     %brick.dealerChip.setNodeColor("ALL", %color[%type]);
     %brick.dealerChip.setScale(%scale[%type]);
 
-    %brick.dealerChip.setTransform(%brick.chipPos);
+    %brick.dealerChip.setTransform(%brick.gameGetNode("Chip"));
 }
 
 package EventGame_texasHoldem
