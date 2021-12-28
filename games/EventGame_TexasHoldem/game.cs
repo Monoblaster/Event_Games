@@ -98,12 +98,7 @@ function EventGame_TexasHoldem::StartGame(%this)
 
     %this.checkSeats();
 
-    %this.DealPlayersCards();
-    if(%this.playersInHand > 0)
-    {
-        %this.SetupTable(%this.GetRandomOccupiedSeat());
-        %this.endBets();
-    }
+    %this.schedule(300 * %this.numSeats,"DealPlayersCards");
 }
 
 function EventGame_TexasHoldem::CheckStartGame(%this)
@@ -143,15 +138,24 @@ function EventGame_TexasHoldem::cleanTable(%this)
     %seatCount = %this.numSeats;
     for(%i = 0; %i < %seatCount; %i++)
     {
+<<<<<<< HEAD
         %this.removecard("hand" @ %i,0);
         %this.removecard("hand" @ %i,1);
+=======
+        %this.removecard("hand" @ %i,0,300 * %i);
+        %this.removecard("hand" @ %i,1,300 * %i);
+>>>>>>> 58869726a1ee9f9e82db92bbf04dfbb52441074c
         gameBrickFunction(%this, "hand" @ %i, "removeBrickChips");
         gameBrickFunction(%this, "hand" @ %i, "createBrickDealerChip",0);
     }
 
     for(%i = 0; %i < 5; %i++)
     {
+<<<<<<< HEAD
         %this.removeCard("river",%i);
+=======
+        %this.removeCard("river",%i,200 * %i);
+>>>>>>> 58869726a1ee9f9e82db92bbf04dfbb52441074c
     }
 }
 
@@ -224,7 +228,10 @@ function EventGame_TexasHoldem::checkSeats(%this)
             if(%prev !$= "")
             {
                 %this.playerSeat[%prev] = "";
+<<<<<<< HEAD
                 
+=======
+>>>>>>> 58869726a1ee9f9e82db92bbf04dfbb52441074c
             }
         }
     }
@@ -263,8 +270,13 @@ function EventGame_TexasHoldem::DealPlayersCards(%this)
         }
         else
         {
+<<<<<<< HEAD
             %card1 = %this.dealCard("hand" @ %seat,0,true);
             %card2 = %this.dealCard("hand" @ %seat,1,true);
+=======
+            %card1 = %this.dealCard("hand" @ %seat,0,true, 200 * %i);
+            %card2 = %this.dealCard("hand" @ %seat,1,true, 200 * %i + 200 * %this.playerCount);
+>>>>>>> 58869726a1ee9f9e82db92bbf04dfbb52441074c
 
             %this.hand[%seat,0] = %card1;
             %this.hand[%seat,1] = %card2;
@@ -280,7 +292,11 @@ function EventGame_TexasHoldem::DealPlayersCards(%this)
     if(%this.playersInHand > 0)
     {
         %this.SetupTable(%this.GetRandomOccupiedSeat());
+<<<<<<< HEAD
         %this.endBets();
+=======
+        %this.schedule(200 * %this.playerCount + 200 * %this.playerCount  + 300,"endBets");
+>>>>>>> 58869726a1ee9f9e82db92bbf04dfbb52441074c
     }
 }
 
