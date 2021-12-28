@@ -134,18 +134,18 @@ function EventGame_BlackJack::dealCards(%this)
     for(%i = 0; %i < %playerCount; %i++)
     {
         %seat = %this.PlayerSeat[%i];
-        %this.dealCard("player" @ %seat, 0, false, 200 * %i);
+        %this.dealCard("player" @ %seat, 0, false);
     }
 
-    %this.dealCard("dealer", 0,false, 200 * %i);
+    %this.dealCard("dealer", 0,false);
 
     for(%i = 0; %i < %playerCount; %i++)
     {
         %seat = %this.PlayerSeat[%i];
-        %this.dealCard("player" @ %seat, 1,false, 200 * (%i + %playerCount));
+        %this.dealCard("player" @ %seat, 1);
     }
 
-    %this.dealCard("dealer", 1,false, 200 * (%i + %playerCount));
+    %this.dealCard("dealer", 1,false);
 
     //after cards are dealt
     %this.schedule(200 * (%i + %playerCount + 1),"startPlay");
