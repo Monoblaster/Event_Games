@@ -43,6 +43,17 @@ function SimObject::EventGame_Call(%this, %method, %v0, %v1, %v2, %v3, %v4, %v5,
 	return eval(%this @ "." @ %method @ $EventGame_Call_Lookup[%numArguments]);
 }
 
+function fxDTSBrick::gameSetNode(%brick, %name, %offset, %eulerRotation)
+{
+    %radRotation = %eulerRotation * ($PI / 180);
+    %brick.NodeTable[%name] = %offset SPC vectorToRotUp(vectorRotate("1 0 0", "0 0 1", %radRotation));
+}
+
+function fxDTSBrick::gameGetNode(%brick,%name)
+{
+    return %brick.nodeTable[%name];
+}
+
 
 package EventGames
 {
