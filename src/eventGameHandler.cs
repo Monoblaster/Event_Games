@@ -103,7 +103,7 @@ function EventGameHandler::AddPlayer(%this,%group,%gameName,%parameters,%brick,%
 
         %currGame = %client.currEventGame;
 
-        if(%currGame)
+        if(%currGame && false)
         {
             %client.centerPrint("\c6You are already in a game. Type !leave and try again",2);
             return;

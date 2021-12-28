@@ -12,15 +12,9 @@ function EventGame_BlackJack::NewGame(%this,%brick,%client)
 {
     %this.numSeats = %this.p0;
 
-    //TODO: setup nodes for card placement
-    
-    // gameBrickFunction(%this,"River","setupCommunityCardsTexasHoldemDDisplay",%this);
-
-    // for(%i = 0; %i < %this.numSeats; %i++)
-    // {
-    //     gameBrickFunction(%this,"Hand" @ %i,"setupPlayerTexasHoldemDisplay",%this,%i);
-    // }
-
+    //all players use the nodes stored on the dealer brick
+    //TODO: maybe not?
+    gameBrickFunction(%this,"Dealer","setupBlackJackNodes",%this);
 }
 
 function EventGame_BlackJack::EndGame(%this,%brick,%client) 
@@ -54,7 +48,11 @@ function EventGame_BlackJack::AddPlayer(%this,%brick,%client)
         }
         EventGameHandler.DoCommand(%this.getgroup(),%this.name,"RemovePlayer","",%brick,%client);
     }
-    else
+    else if(%this.seatPlayer[%thisSeat] !$= "")
+    {
+        %client.centerPrint("\c6Someone is already sitting at this seat",2);
+    }
+    else 
     {
         %this.playerSeat[%this.playerCount - 1] = %thisSeat;
         %this.seatPlayer[%thisSeat] = %this.playerCount - 1;
@@ -71,7 +69,7 @@ function EventGame_BlackJack::RemovePlayer(%this,%brick,%client)
 
     if(%this.currTurn = %seat)
     {
-        %this.SeatFold(%seat);
+        //TODO: make them instantly bust if they leave the game
     }
 
     %client.centerPrint("\c6You have left Black Jack",2);
@@ -108,29 +106,89 @@ function EventGame_BlackJack::CheckStartGame(%this)
 
 function EventGame_BlackJack::cleanTable(%this)
 {
-
+    //TODO: remove all player cards and chips from the table
 }
 
 function EventGame_BlackJack::startBets(%this)
 {
+    //start betting
+    //betting is asynchronous so there is a 10 second timer
+    //prompt all players who are in the game
+    %this.betting = true;
+    chatMessagePlayers(%this,"\c3Time to bet! Use \c4!bet \c3to make your bet.");
+
+    //ten second timeup
+    %this.schedule("10000","endBets");
+}
+
+function EventGame_BlackJack::endBets(%this)
+{
+    %this.betting = false;
     //after bets are done
     %this.dealCards();
 }
 
 function EventGame_BlackJack::dealCards(%this)
 {
+    %playerCount = %this.palyerCount;
+    for(%i = 0; %i < %playerCount; %i++)
+    {
+        %seat = %this.PlayerSeat[%i];
+        %this.dealCard("player" @ %seat, 0, false, 200 * %i);
+    }
+
+    %this.dealCard("dealer", 0,false, 200 * %i);
+
+    for(%i = 0; %i < %playerCount; %i++)
+    {
+        %seat = %this.PlayerSeat[%i];
+        %this.dealCard("player" @ %seat, 1,false, 200 * (%i + %playerCount));
+    }
+
+    %this.dealCard("dealer", 1,false, 200 * (%i + %playerCount));
+
     //after cards are dealt
-    %this.startPlay();
+    %this.schedule(200 * (%i + %playerCount + 1),"startPlay");
 }
 
 function EventGame_BlackJack::startPlay(%this)
 {
-    //after everyone has player
-    %this.endPlay();
+    %this.currTurn = -1;
+    %this.turnsCompleted = 0;
+    %this.playing = true;
+    %this.nextTurn();
+}
+
+function EventGame_BlackJack::nextTurn(%this)
+{
+    if(%this.turnsCompleted >= %this.playerCount)
+    {
+        %this.currTurn = %this.getNextSeat(%this.currTurn + 1);
+        %client = %this.player[%this.seatPlayer[%this.currTurn]];
+        %client.chatMessage("\c3It is your turn to play. !hit, !stand, or !doubledown to finish playing your hand.");
+        //TODO: check if the player can split and prompt accodingly
+    }
+    else
+    {
+        //after everyone has played
+        %this.endPlay();
+    }
+    %this.turnsCompleted++;
+}
+
+function EventGame_BlackJack::checkEndTurn(%this)
+{
+    %currTurn = %this.currTurn;
+
+    if(%this.stand[%currTurn] || %this.bust[%currTurn] || %this.doubleDown[%currTurn])
+    {
+        %this.nextTurn();
+    }
 }
 
 function EventGame_BlackJack::endPlay(%this)
 {
+    %this.playing = false;
     //after everything is revealed
     %this.doScoring();
 }
@@ -139,5 +197,35 @@ function EventGame_BlackJack::doScoring(%this)
 {
     //after scoring checkstart for the next game
     %this.checkStart();
+}
+
+function EventGame_BlackJack::serverGameBet(%this,%client)
+{
+    //TODO: add bet
+}
+
+function EventGame_BlackJack::serverGameHit(%this,%client)
+{
+    %seat = %this.playerSeat[%this.playerIndex[%client]];
+    if(%this.playing && %seat == %this.currTurn)
+    {
+        %this.hand[%seat,%this.hitCount[%seat] + 2] = %this.dealCard("player" @ %seat,%this.hitCount[%seat] + 2,false);
+        //TODO: check for bust
+    }
+}
+
+function EventGame_BlackJack::serverGameStand(%this,%client)
+{
+    //TODO: add Stand
+}
+
+function EventGame_BlackJack::serverGameDoubleDown(%this,%client)
+{
+    //TODO: add DoubleDown
+}
+
+function EventGame_BlackJack::serverGameSplit(%this,%client)
+{
+    //TODO: add Split
 }
 

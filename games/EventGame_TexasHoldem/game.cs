@@ -36,7 +36,17 @@ function EventGame_TexasHoldem::EndGame(%this,%brick,%client)
 
 function EventGame_TexasHoldem::AddPlayer(%this,%brick,%client)
 {
+    %parameter = %this.p[0];
+
+    if(%parameter !$= "")
+    {
+        %thisSeat = %parameter;
+    }
+    else
+    {
     %thisSeat = %this.playerCount - 1;
+    }
+    
     if(%thisSeat >= %this.numSeats || %client.score == 0)
     {
         if(%thisSeat >= %this.numSeats)
@@ -49,14 +59,17 @@ function EventGame_TexasHoldem::AddPlayer(%this,%brick,%client)
         }
         EventGameHandler.DoCommand(%this.getgroup(),%this.name,"RemovePlayer","",%brick,%client);
     }
+    else if(%this.seatPlayer[%thisSeat] !$= "")
+    {
+        %client.centerPrint("\c6Someone is already sitting at this seat",2);
+    }
     else
     {
         %this.playerSeat[%this.playerCount - 1] = %thisSeat;
         %this.seatPlayer[%thisSeat] = %this.playerCount - 1;
         //once there are more than 1 players start the game
         %this.CheckStartGame();
-
-        %this.centerPrint("\c6Welcome to Texas Hold'em. If you do not know how to play poker look it up!",5);
+        %client.centerPrint("\c6Welcome to Texas Hold'em. If you do not know how to play poker look it up!",5);
     }    
 }
 
@@ -65,12 +78,12 @@ function EventGame_TexasHoldem::RemovePlayer(%this,%brick,%client)
     //remove
     %seat = %this.playerSeat[%this.playerIndex[%client]];
 
-    if(%this.currTurn = %seat)
+    if(%this.currTurn = %seat && %this.betting)
     {
         %this.SeatFold(%seat);
     }
 
-    %this.centerPrint("\c6You have left Texas Hold'em",2);
+    %client.centerPrint("\c6You have left Texas Hold'em",2);
 }
 
 
@@ -83,11 +96,7 @@ function EventGame_TexasHoldem::StartGame(%this)
     %this.resetValues();
     %this.cleanTable();
 
-    if(isObject(%this.deck))
-    {
-        %this.deck.delete();
-    }
-    %this.deck = getShuffledDeck(1);
+    %this.checkSeats();
 
     %this.DealPlayersCards();
     if(%this.playersInHand > 0)
@@ -134,15 +143,15 @@ function EventGame_TexasHoldem::cleanTable(%this)
     %seatCount = %this.numSeats;
     for(%i = 0; %i < %seatCount; %i++)
     {
-        gameBrickFunction(%this, "hand" @ %i, "removeBrickCard",0);
-        gameBrickFunction(%this, "hand" @ %i, "removeBrickCard",1);
+        %this.removecard("hand" @ %i,0);
+        %this.removecard("hand" @ %i,1);
         gameBrickFunction(%this, "hand" @ %i, "removeBrickChips");
         gameBrickFunction(%this, "hand" @ %i, "createBrickDealerChip",0);
     }
 
     for(%i = 0; %i < 5; %i++)
     {
-        gameBrickFunction(%this, "river", "removeBrickCard",%i);
+        %this.removeCard("river",%i);
     }
 }
 
@@ -161,7 +170,7 @@ function EventGame_TexasHoldem::ResetValues(%this)
         %this.seatAllIn[%i] = false;
         %this.seatFolded[%i] = false;
         %this.seatInHand[%i] = false;
-        %this.hand[%i,0] = "";
+        %this.hand[%i,0] = "";7
         %this.hand[%i,1] = "";
         %this.bestHandCards[%i] = "";
         %this.bestHandEval[%i] = "";
@@ -174,8 +183,73 @@ function EventGame_TexasHoldem::ResetValues(%this)
     }
 }
 
+
+function EventGame_TexasHoldem::checkSeats(%this)
+{
+    %numSeats = %this.numSeats;
+    for(%i = 0; %i < %numSeats; %i++)
+    {
+        %brickPos = gameBrickFunction(%this,"seat" @ %i, "getPosition");
+        %mask = $TypeMasks::PlayerObjectType;
+        
+        %ray = containerRaycast(%brickPos,vectorAdd(%brickPos,"0 0 1"),%mask);
+        %hit = getWord(%ray, 0);
+        %client = %hit.client;
+        if(isObject(%client) && %client.currEventGame == %this)
+        {
+            %id = %this.playerIndex[%client];
+            %seat = %this.playerSeat[%id];
+
+            //player is sitting in a different seat
+            if(%i != %seat)
+            {
+                //remove them from their previous seat
+                %this.seatPlayer[%seat] = "";
+
+                //add them to the new seat
+                %this.seatPlayer[%i] = %id;
+                %this.playerSeat[%id] = %i;
+            }
+        }
+        else if(isObject(%client) && %client.currEventGame != %this)
+        {
+            //center print the player to prompt game joinage
+            %client.centerPrint("\c6Click a seat to join the game!",2);
+        }
+        else
+        {
+            //clear players that were sitting here
+            %prev = %this.seatPlayer[%i];
+            %this.seatPlayer[%i] = "";
+            if(%prev !$= "")
+            {
+                %this.playerSeat[%prev] = "";
+                
+            }
+        }
+    }
+
+    //remove players who no longer own seats
+    %playerCount = %this.playerCount;
+    for(%i = 0; %i < %playerCount; %i++)
+    {
+        %seat = %this.playerSeat[%i];
+
+        if(%seat $= "")
+        {
+            EventGameHandler.DoCommand(%this.getGroup(),%this.name,"RemovePlayer","",0,%this.player[%i]);
+        }
+    }
+}
+
 function EventGame_TexasHoldem::DealPlayersCards(%this)
 {
+    if(isObject(%this.deck))
+    {
+        %this.deck.delete();
+    }
+    %this.deck = getShuffledDeck(1);
+
     for(%i = 0; %i < %this.playerCount; %i++)
     { 
         %seat = %this.playerSeat[%i];
@@ -189,8 +263,8 @@ function EventGame_TexasHoldem::DealPlayersCards(%this)
         }
         else
         {
-            %card1 = %this.DealCard("hand" @ %seat, 0,true);
-            %card2 = %this.DealCard("hand" @ %seat, 1,true);
+            %card1 = %this.dealCard("hand" @ %seat,0,true);
+            %card2 = %this.dealCard("hand" @ %seat,1,true);
 
             %this.hand[%seat,0] = %card1;
             %this.hand[%seat,1] = %card2;
@@ -201,6 +275,12 @@ function EventGame_TexasHoldem::DealPlayersCards(%this)
             %this.seatInHand[%seat] = true;
             %this.playersInHand++;
         }
+    }
+
+    if(%this.playersInHand > 0)
+    {
+        %this.SetupTable(%this.GetRandomOccupiedSeat());
+        %this.endBets();
     }
 }
 
