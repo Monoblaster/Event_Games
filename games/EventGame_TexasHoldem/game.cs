@@ -294,7 +294,7 @@ function EventGame_TexasHoldem::startBet(%this)
     %client = %this.GetSeatPlayer(%this.currTurn);
     if(%client)
     {
-        %client.chatMessage("\c5It is your turn. The current bet is" SPC %this.currBet @ ". !raise, !call, or !fold.");
+        %client.chatMessage("\c5It is your turn. The current bet is" SPC %this.currBet SPC "you have" SPC %client.score SPC "chips. !raise, !call, or !fold.");
         %this.betting = true;
 
         //start a schedule for to remove the player if they take too long
