@@ -76,8 +76,9 @@ function EventGameHandler::EndGame(%this,%group,%gameName,%parameters,%brick,%cl
         %game = %group.getObject(%i);
 
         %count = %game.playerCount;
-        for(%j = 0; %j < %count; %j++)
+        for(%j = %count - 1; %j >= 0; %j--)
         {
+            talk(%j);
             %currClient = %game.getIndexPlayer(%j);
             %currClient.currEventGame = "";
             EventGameHandler.DoCommand(%group,%gameName,"RemovePlayer","",%brick,%currClient);
@@ -141,7 +142,7 @@ function EventGameHandler::RemovePlayer(%this,%group,%gameName,%parameters,%bric
         for(%j = %i; %j < %count; %j++)
         {
             %player = %game.player[%j + 1];
-            %game.player[%j] = %player;
+            %game.indexPlayer[%j] = %player;
             %game.playerIndex[%player] = %j;
         }
         %game.playerCount--;

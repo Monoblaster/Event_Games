@@ -164,7 +164,7 @@ function EventGame_BlackJack::nextTurn(%this)
     if(%this.turnsCompleted >= %this.playerCount)
     {
         %this.currTurn = %this.getNextSeat(%this.currTurn + 1);
-        %client = %this.player[%this.seatPlayer[%this.currTurn]];
+        %client = %this.seatPlayer(%this.currTurn);
         %client.chatMessage("\c3It is your turn to play. !hit, !stand, or !doubledown to finish playing your hand.");
         //TODO: check if the player can split and prompt accodingly
     }

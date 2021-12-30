@@ -85,8 +85,8 @@ function EventGame_TexasHoldem::RemovePlayer(%this,%brick,%client)
 
     %this.playerSeat[%client] = "";
     %this.seatPlayer[%seat] = "";
-
-    if(%this.currTurn = %seat && %this.betting)
+    talk(%this.currturn SPC %seat SPC "left");
+    if(%this.betting && !%this.seatFolded[%seat])
     {
         %this.SeatFold(%seat);
     }
@@ -97,6 +97,7 @@ function EventGame_TexasHoldem::RemovePlayer(%this,%brick,%client)
 
 function EventGame_TexasHoldem::StartGame(%this)
 {
+    %this.gameGoing = true;
     //set the ante and dealer chip
     //deal cards to everyone
     //start preflop betting
@@ -113,7 +114,7 @@ function EventGame_TexasHoldem::CheckStartGame(%this)
 {
     %playerCount = %this.playerCount;
 
-    if(%playerCount > 1)
+    if(%playerCount > 1 && !%this.gameGoing)
     {
         %this.startGame();
     }
@@ -312,6 +313,7 @@ function EventGame_TexasHoldem::startBet(%this)
 function EventGame_TexasHoldem::nextBet(%this)
 {
     %this.currTurn = %this.getNextSeat(%this.currTurn);
+
     cancel(%this.timeoutSchedule);
     if((%this.consecutiveCalls + %this.playersAllIn) >= %this.playersInHand || %this.playersInhand == 1)
     {
@@ -343,7 +345,7 @@ function EventGame_TexasHoldem::endBets(%this)
             %this.river[4] = %this.DealCard("river", 4,false);
     }
         
-    if(%this.round == 4 || (%this.playersAllIn >= %this.playersInHand || %this.playersInhand == 1))
+    if(%this.round == 3 || (%this.playersAllIn >= %this.playersInHand || %this.playersInhand == 1))
     {
         %this.showdown();
     }
@@ -399,6 +401,7 @@ function EventGame_TexasHoldem::Showdown(%this)
     %this.SortHands();
     %this.HandlePot();
 
+    %this.gameGoing = false;
     %this.schedule(10000,"CheckStartGame");
 }
 
@@ -478,7 +481,7 @@ function EventGame_TexasHoldem::makeRaise(%this,%seat,%value)
 
 function EventGame_TexasHoldem::SeatFold(%this,%seat)
 {
-    %this.chatToMessagePlayers("\c4" @ %this.seatName[%seat] SPC "\c0folds\c4!");
+    %this.chatMessageToPlayers("\c4" @ %this.seatName[%seat] SPC "\c0folds\c4!");
     %this.seatFolded[%seat] = true;
     %this.playersInHand--;
     %this.gameBrickFunction("hand" @ %seat, "removeBrickCard");
@@ -488,6 +491,7 @@ function EventGame_TexasHoldem::SeatFold(%this,%seat)
 function EventGame_TexasHoldem::serverGameCmdCall(%this,%client)
 {
     %seat = %this.getPlayerSeat(%client);
+    talk(%seat SPC %this.betting SPC %this.currturn);
     if(%this.betting && %seat == %this.currTurn)
     {
         %this.makeRaise(%seat,0);

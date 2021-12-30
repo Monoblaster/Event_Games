@@ -38,7 +38,7 @@ function EventGame_TexasHoldem::GetRandomOccupiedSeat(%this)
 {
     %playerCount = %this.playerCount;
     
-    return %this.playerSeat[getRandom(0,%this.playerCount - 1)];
+    return %this.getIndexSeat(getRandom(0,%this.playerCount - 1));
 }
 
 function EventGame_TexasHoldem::DealCard(%this,%brickName,%slot,%down,%delay)
