@@ -139,12 +139,13 @@ function EventGameHandler::RemovePlayer(%this,%group,%gameName,%parameters,%bric
         %client.currEventGame = "";
         %i = %game.playerIndex[%client];
         %count = %game.playerCount + 0;
-        for(%j = %i; %j < %count; %j++)
+        for(%j = %i; %j <= %count; %j++)
         {
-            %player = %game.player[%j + 1];
+            %player = %game.getIndexPlayer(%j + 1);
             %game.indexPlayer[%j] = %player;
             %game.playerIndex[%player] = %j;
         }
+        %game.playerIndex[%client] = "";
         %game.playerCount--;
     }
 }
