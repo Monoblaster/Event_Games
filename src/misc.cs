@@ -22,6 +22,7 @@ $EventGame_Call_Lookup[$EventGame_Call_Lookup++ - 1] = "(%v0,%v1,%v2,%v3,%v4,%v5
 function SimObject::EventGame_Call(%this, %method, %v0, %v1, %v2, %v3, %v4, %v5, %v6,%v7, %v8, %v9, %v10, %v11, %v12, %v13, %v14, %v15, %v16, %v17)
 {
     %class = %this.class;
+
     if(%class $= "")
     {
         %class = %this.getClassName();
@@ -40,6 +41,7 @@ function SimObject::EventGame_Call(%this, %method, %v0, %v1, %v2, %v3, %v4, %v5,
 		if(%v[%i] !$= "")
 			%numArguments = %i + 1;
 	}
+
 	return eval(%this @ "." @ %method @ $EventGame_Call_Lookup[%numArguments]);
 }
 
@@ -54,6 +56,89 @@ function fxDTSBrick::gameGetNode(%brick,%name)
     return %brick.nodeTable[%name];
 }
 
+ function EventGame::gameBrickFunction(%game,%name,%function, %v0, %v1, %v2, %v3, %v4, %v5, %v6,%v7, %v8, %v9, %v10, %v11, %v12, %v13, %v14, %v15, %v16)
+    {
+        %brick = %game.NT[%game.name @ %name];
+        if(isObject(%brick))
+        {
+            %brick.EventGame_Call(%function, %v0, %v1, %v2, %v3, %v4, %v5, %v6,%v7, %v8, %v9, %v10, %v11, %v12, %v13, %v14, %v15, %v16);
+        }
+        else
+        {
+           eventGameWarn("brick" SPC %game.name @ %name SPC "does not exist");
+           backtrace();
+        }
+    }
+
+    function EventGame::chatMessageToPlayers(%game,%msg)
+    {
+        %playerCount = %game.playerCount;
+        for(%i = 0; %i < %playerCount; %i++)
+        {
+            %client = %game.getIndexPlayer(%i);
+            %client.chatMessage(%msg);
+        }
+    }
+
+    function EventGame::playSoundToPlayers(%game,%sound)
+    {
+        %playerCount = %game.playerCount;
+        for(%i = 0; %i < %playerCount; %i++)
+        {
+            %client = %game.getIndexPlayer(%i);
+            %client.play2d(%sound);
+        }
+    }
+
+    function EventGame::getIndexPlayer(%game,%index)
+    {
+        return %game.indexPlayer[%index];
+    }
+
+    function EventGame::getPlayerIndex(%game,%player)
+    {
+        return %game.playerIndex[%player];
+    }
+
+    function EventGame::retrieveEventGameParameters(%game,%parameters)
+    {
+        %parameters = strReplace(%parameters,",","\t");
+        %count = getfieldCount(%parameters);
+        for(%i = 0; %i < 20; %i++)
+        {
+            %field = trim(getField(%parameters,%i));
+            %game.p[%i] = %field;
+        }
+    }
+
+    function EventGame::collectEventGameBricks(%game,%brickgroup)
+    {
+        %name = %game.name;
+
+        %NTCount = %brickgroup.NT["NameCount"];
+        for(%i = 0; %i < %NTCount; %i++)
+        {
+            %NTName = %brickgroup.NTName[%i];
+            if(strPos(%NTName,%name) == 1)
+            {
+                %brick = %brickgroup.NTOBject[%NTName,0];
+                %game.collectEventGameBrickParameters(%NTName);
+                %game.NT[stripEventGameParameters(%NTName)] = %brick;
+            }
+        }
+    }
+
+    function EventGame::collectEventGameBrickParameters(%game,%name)
+    {
+        %strippedName = stripEventGameParameters(%name);
+		%strippedParameters = strReplace(stripEventGameBrickName(%name),"APOS","\t");
+        %count = getFieldCount(%strippedParameters);
+        for(%i = 0; %i < %count; %i++)
+        {
+            %game.PT[%strippedName,%i] = strReplace(getField(%strippedParameters,%i),"DASH","-");
+        }
+        
+    }
 
 package EventGames
 {
@@ -82,8 +167,13 @@ package EventGames
                     $Server::EventGame::FunctionList[%name,%functionlistCount++ - 1] = %functionName;
                 }
             }
+            %evalString = "";
+            %evalString = %evalString @ "function fxDTSBrick::EventGame" @ %gameName @ "(%brick,%gameName,%gameCommand,%parameters,%client)";
+            %evalString = %evalString @ "{";
+                %evalString = %evalString @ "EventGameHandler.DoCommand(" @ %group @ ",%gamename,$Server::EventGame::FunctionList[" @ %name @ ",%gameCommand],%parameters,%brick,%client);";
+            %evalString = %evalString @ "}";
 
-            eval("function fxDTSBrick::EventGame" @ %gameName @ "(%brick,%gameName,%gameCommand,%parameters,%client){EventGameHandler.DoCommand(" @ %group @ ",%gamename,$Server::EventGame::FunctionList[" @ %name @ ",%gameCommand],%parameters,%brick,%client);}");
+            eval(%evalString);
             registerOutputEvent("fxDTSBrick","EventGame" @ %gameName,"string 200 100" TAB "list" SPC %functionList TAB "string 200 200",true);
         }
         
@@ -93,46 +183,6 @@ package EventGames
             %client = clientGroup.getObject(%i);
             serverCmdRequestEventTables(%client);
         }
-    }
-
-    function retrieveEventGameParameters(%game,%parameters)
-    {
-        %parameters = strReplace(%parameters,",","\t");
-        %count = getfieldCount(%parameters);
-        for(%i = 0; %i < 20; %i++)
-        {
-            %field = trim(getField(%parameters,%i));
-            %game.p[%i] = %field;
-        }
-    }
-
-    function collectEventGameBricks(%game,%brickgroup)
-    {
-        %name = %game.name;
-
-        %NTCount = %brickgroup.NT["NameCount"];
-        for(%i = 0; %i < %NTCount; %i++)
-        {
-            %NTName = %brickgroup.NTName[%i];
-            if(strPos(%NTName,%name) == 1)
-            {
-                %brick = %brickgroup.NTOBject[%NTName,0];
-                collectEventGameBrickParameters(%game,%NTName);
-                %game.NT[stripEventGameParameters(%NTName)] = %brick;
-            }
-        }
-    }
-
-    function collectEventGameBrickParameters(%game,%name)
-    {
-        %strippedName = stripEventGameParameters(%name);
-		%strippedParameters = strReplace(stripEventGameBrickName(%name),"APOS","\t");
-        %count = getFieldCount(%strippedParameters);
-        for(%i = 0; %i < %count; %i++)
-        {
-            %game.PT[%strippedName,%i] = strReplace(getField(%strippedParameters,%i),"DASH","-");
-        }
-        
     }
 
 	function stripEventGameParameters(%name)
@@ -157,29 +207,6 @@ package EventGames
 		}
 
         return getSubStr(%name,%start,strLen(%name) - %start);
-    }
-
-    function gameBrickFunction(%game,%name,%function, %v0, %v1, %v2, %v3, %v4, %v5, %v6,%v7, %v8, %v9, %v10, %v11, %v12, %v13, %v14, %v15, %v16)
-    {
-        %brick = %game.NT[%game.name @ %name];
-        if(isObject(%brick))
-        {
-            %brick.EventGame_Call(%function, %v0, %v1, %v2, %v3, %v4, %v5, %v6,%v7, %v8, %v9, %v10, %v11, %v12, %v13, %v14, %v15, %v16);
-        }
-        else
-        {
-           eventGameWarn("brick" SPC %game.name @ %name SPC "does not exist");
-        }
-    }
-
-    function chatMessagePlayers(%game,%msg)
-    {
-        %playerCount = %game.playerCount;
-        for(%i = 0; %i < %playerCount; %i++)
-        {
-            %client = %game.player[%i];
-            %client.chatMessage(%msg);
-        }
     }
 
     function eventGameWarn(%text)

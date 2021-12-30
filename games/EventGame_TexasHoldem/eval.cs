@@ -59,7 +59,7 @@ function EventGame_TexasHoldem::getBestHand(%this,%seat)
             %bestEvalHand  = %eval;
         }
     }
-    
+
     return %bestEvalHand;
 }
 //eval is just the handType
@@ -109,7 +109,7 @@ function EventGame_TexasHoldem::HandType(%this,%hand)
         %sortedCount++;
         %temp = "";
         %ins = %value;
-        %insvalue = %i;
+        %insvalue = mod(%i - 1, 13);
         for(%k = %j; %k < %sortedCount; %k++)
         {
             %temp = %sortedHistogram[%k];
@@ -186,7 +186,7 @@ function EventGame_TexasHoldem::HandType(%this,%hand)
         //sort cards with the sorted histogram in mind
         for(%i = 0; %i < 4; %i++)
         {
-            %value = mod(%sortedHistogramValue[%i] - 1,13);
+            %value = %sortedHistogramValue[%i];
             %ammount = %sortedHistogram[%i] + 0;
             for(%j = 0; %j < 5; %j++)
             {
@@ -277,9 +277,22 @@ function EventGame_TexasHoldem::SortHands(%this)
 
 function EventGame_TexasHoldem::GetHandPrint(%this,%hand)
 {
-    for(%i = 0; %i < 5; %i++)
+    %wordCount = getWordCount(%hand);
+    for(%i = 0; %i < %wordCount; %i++)
     {
-        %cards = trim(%cards SPC getLongCardName(getWord(%hand,%i)));
+        %seperator = "";
+
+        if(%i == (%wordCount - 2))
+        {
+            %seperator = " \c6and";
+        }
+
+        if(%i < (%wordCount - 1) && %wordCount > 2)
+        {
+            %seperator = "\c6," SPC trim(%seperator);
+        }
+
+        %cards = trim(%cards SPC getLongCardName(getWord(%hand,%i)) @ %seperator);
     }
     return %cards;
 }
@@ -302,7 +315,7 @@ function EventGame_TexasHoldem::HandlePot(%this)
     {
         %seat = %this.sorted[%i];
         %bet = %this.seatBet[%seat];
-        %client = %this.player[%this.seatPlayer[%seat]];
+        %client = %this.getSeatPlayer(%seat);
         %totalGain = 0;
         //substract up to the bet from the pot
         if(%bet > 0)
@@ -324,8 +337,8 @@ function EventGame_TexasHoldem::HandlePot(%this)
                 %pot = "the main";
             }
             %client.setScore(%client.score + %totalGain);
-            chatMessagePlayers(%this,"\c3" @ %this.seatName[%seat] SPC "wins" SPC %pot SPC "pot of" SPC %totalGain SPC "chips with a" SPC $Server::TexasHoldem::HandTypeName[getWord(%this.bestHand[%seat],0)] @ "!");
-            chatMessagePlayers(%this,%this.GetHandPrint(getWords(%this.bestHand[%seat],1)));
+            %this.chatMessageToPlayers("\c3" @ %this.seatName[%seat] SPC "wins" SPC %pot SPC "pot of" SPC %totalGain SPC "chips with a" SPC $Server::TexasHoldem::HandTypeName[getWord(%this.bestHand[%seat],0)] @ "!");
+            %this.chatMessageToPlayers(%this.GetHandPrint(getWords(%this.bestHand[%seat],1)));
             %firstPot = false;
         }
         

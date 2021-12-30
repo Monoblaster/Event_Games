@@ -1,3 +1,24 @@
+function EventGame_TexasHoldem::GetPlayerSeat(%this,%player)
+{
+    return %this.PlayerSeat[%player];
+}
+
+function EventGame_TexasHoldem::GetIndexSeat(%this,%index)
+{
+    return %this.PlayerSeat[%this.getIndexPlayer(%index)];
+}
+
+function EventGame_TexasHoldem::GetSeatPlayer(%this,%seat)
+{
+    return %this.SeatPlayer[%seat];
+}
+
+function EventGame_TexasHoldem::GetSeatIndex(%this,%seat)
+{
+    return %this.GetPlayerIndex(%this.SeatPlayer[%seat]);
+}
+
+
 function EventGame_TexasHoldem::GetNextSeat(%this,%currSeat)
 {
     %seatCount = %this.numSeats;
@@ -22,14 +43,14 @@ function EventGame_TexasHoldem::GetRandomOccupiedSeat(%this)
 
 function EventGame_TexasHoldem::DealCard(%this,%brickName,%slot,%down,%delay)
 {
-    %currCard = gameBrickFunction(%this,%brickName,"getBrickCard",%slot);
+    %currCard = %this.gameBrickFunction(%brickName,"getBrickCard",%slot);
     if(%currCard $= "")
     {
         %card = %this.deck.removeCard();
 
         if(!%delay)
         {
-            %this.gameBrickFunction(%this,%brickName,"PlaceBRickCard",%slot,%card,%down);
+            %this.gameBrickFunction(%brickName,"PlaceBRickCard",%slot,%card,%down);
         }
         else
         {
@@ -42,12 +63,12 @@ function EventGame_TexasHoldem::DealCard(%this,%brickName,%slot,%down,%delay)
 
 function EventGame_TexasHoldem::RemoveCard(%this,%brickName,%slot,%delay)
 {
-    %card = gameBrickFunction(%this,%brickName,"getBrickCard",%slot);
+    %card = %this.gameBrickFunction(%brickName,"getBrickCard",%slot);
     if(%card !$= "")
     {
         if(!%delay)
         {
-            %this.gameBrickFunction(%this,%brickName,"removeBrickCard",%slot);
+            %this.gameBrickFunction(%brickName,"removeBrickCard",%slot);
         }
         else
         {
@@ -60,17 +81,22 @@ function EventGame_TexasHoldem::PeakCards(%this,%seat)
 {
     %card0 = %this.hand[%seat,0];
     %card1 = %this.hand[%seat,1];
-    %player = %this.player[%this.seatPlayer[%seat]].player;
+    %client = %this.getSeatPlayer(%seat);
+    %player = %client.player;
 
     if(!%player.peaking)
     {
-        gameBrickFunction(%this, "hand" @ %seat, "removeBrickCard",0);
-        gameBrickFunction(%this, "hand" @ %seat, "removeBrickCard",1);
+        %this.gameBrickFunction("hand" @ %seat, "removeBrickCard",0);
+        %this.gameBrickFunction("hand" @ %seat, "removeBrickCard",1);
+
+        %client.play2d("cardpick" @ getRandom(1, 4) @ "Sound");
 
         %player.peaking = true;
         %player.displayCards();
         %player.isCardsVisible = 0;
         bottomprintCardInfo(%player);
+
+        %client.centerPrint(%this.GetHandPrint(%card0 SPC %card1),2);
     }
 }
 
@@ -78,15 +104,18 @@ function EventGame_TexasHoldem::UnPeakCards(%this,%seat)
 {
     %card0 = %this.hand[%seat,0];
     %card1 = %this.hand[%seat,1];
-    %player = %this.player[%this.seatPlayer[%seat]].player;
+    %client = %this.getSeatPlayer(%seat);
+    %player = %client.player;
     
     if(%player.peaking)
     {
         %player.hideCards();
         %player.peaking = false;
 
-        gameBrickFunction(%this, "hand" @ %seat, "placeBrickCard",0,%card0,true);
-        gameBrickFunction(%this, "hand" @ %seat, "placeBrickCard",1,%card1,true);
+        %this.gameBrickFunction("hand" @ %seat, "placeBrickCard",0,%card0,true);
+        %this.gameBrickFunction("hand" @ %seat, "placeBrickCard",1,%card1,true);
+
+        %client.play2d("cardplace" @ getRandom(1, 4) @ "Sound");
     }
 }
 
@@ -133,7 +162,7 @@ function fxDTSBrick::placeBrickCard(%brick, %slot, %card, %down)
 {
     %brick.removeBrickCard(%slot);
     %brickName = %brick.getName();
-    serverPlay3D(("cardPlace" @ getRandom(1, 4) @ "Sound"), %brick.getPosition());
+    //serverPlay3D(("cardPlace" @ getRandom(1, 4) @ "Sound"), %brick.getPosition());
 	
 	%cardShape = new StaticShape(CardShapes) {
 		dataBlock = CardShape;
@@ -168,7 +197,7 @@ function fxDTSBrick::removeBrickCard(%brick,%slot)
     %card = %brick.placedCard[%slot];
     if(%card)
     {
-        serverPlay3D(("cardPick" @ getRandom(1, 4) @ "Sound"), %brick.getPosition());
+        //serverPlay3D(("cardPick" @ getRandom(1, 4) @ "Sound"), %brick.getPosition());
         %brick.placedCard[%slot] = "";
         %card.delete();
     }
@@ -179,7 +208,7 @@ function fxDTSBrick::flipBrickCard(%brick,%slot)
     %card = %brick.placedCard[%slot];
     if(%card)
     {
-        serverPlay3D(("cardPick" @ getRandom(1, 4) @ "Sound"), %brick.getPosition());
+        //serverPlay3D(("cardPick" @ getRandom(1, 4) @ "Sound"), %brick.getPosition());
         %down = %card.down;
         if (%down) {
             %card.playThread(0, cardFaceUp);
@@ -295,7 +324,7 @@ package EventGame_texasHoldem
         %ev = %client.currEventGame;
         if  (%ev.class $= "EventGame_TexasHoldem")
         {
-            %seat = %ev.playerSeat[%ev.playerIndex[%client]];
+            %seat = %ev.getPlayerSeat(%client);
             if (%trig == 0 && %val == 1) 
             {
                 if(%ev.betting)
@@ -312,7 +341,6 @@ package EventGame_texasHoldem
                             if(%next.owningSeat == %seat && %next.owningSeat !$= "")
                             {
                                 %ev.PeakCards(%seat);
-                                serverPlay3D(("cardPick" @ getRandom(1, 4) @ "Sound"), %next.getPosition());
 
                                 return;
                             } 
@@ -320,9 +348,7 @@ package EventGame_texasHoldem
                     }
                     else if (%player.peaking)
                     {
-
                         %ev.UnPeakCards(%seat);
-                        serverPlay3D(("cardPick" @ getRandom(1, 4) @ "Sound"), %next.getPosition());
 
                         return;
                     }

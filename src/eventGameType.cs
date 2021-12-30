@@ -8,17 +8,17 @@ function EventGameType::DoCommand(%this,%gameName,%gameCommand,%parameters,%bric
     if((%i = $Server::EventGame::Game[%this.class,%gameName]) !$= "")
     {
         %game = %this.getObject(%i);
-        retrieveEventGameParameters(%game,%parameters);
+        %game.retrieveEventGameParameters(%parameters);
         %game.EventGame_Call(%gameCommand,%brick,%client);
     }
 }
 
 function EventGameType::DoServerGameCommand(%this,%game,%gameCommand,%parameters,%client)
 {
-    if(isFunction(%game.class,"ServerGame" @ %gameCommand))
+    if(isFunction(%game.class,"ServerGameCmd" @ %gameCommand))
     {
-        retrieveEventGameParameters(%game,%parameters);
-        %game.EventGame_Call("ServerGame" @ %gameCommand,%client);
+        %game.retrieveEventGameParameters(%parameters);
+        %game.EventGame_Call("ServerGameCmd" @ %gameCommand,%client);
         return true;
     }
     return false;
