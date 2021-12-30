@@ -73,7 +73,7 @@ function EventGame_TexasHoldem::AddPlayer(%this,%brick,%client)
         %this.CheckStartGame();
         %client.centerPrint("\c6Welcome to Texas Hold'em. If you do not know how to play poker look it up!",5);
 
-        %top = vectorAdd(%brick.getPosition(),"0 0 " @ %brick.dataBlock.brickSizeZ/ 10);
+        %top = vectorAdd(%this.gameBrickFunction("Seat" @ %thisSeat,"getPosition"),"0 0 " @ %brick.dataBlock.brickSizeZ/ 10);
         %client.player.setTransform(%top SPC getWords(%client.player.getTransform(),3));
     }    
 }
@@ -82,6 +82,9 @@ function EventGame_TexasHoldem::RemovePlayer(%this,%brick,%client)
 {
     //remove
     %seat = %this.getPlayerSeat(%client);
+
+    %this.playerSeat[%client] = "";
+    %this.seatPlayer[%seat] = "";
 
     if(%this.currTurn = %seat && %this.betting)
     {
@@ -413,7 +416,7 @@ function EventGame_TexasHoldem::makeRaise(%this,%seat,%value)
     {
         //only 1 remaining still in hand
         %newBet = %this.currAllInBet;
-        %this.chatMessagePlayers("\c4" @ %this.seatName[%seat] SPC "\c3matches the all in\c4!");
+        %this.chatMessageToPlayers("\c4" @ %this.seatName[%seat] SPC "\c3matches the all in\c4!");
 
         %pevBet = %this.seatBet[%seat];
         //refund or remove to match the previous allin
@@ -441,7 +444,7 @@ function EventGame_TexasHoldem::makeRaise(%this,%seat,%value)
 
             if(!%this.seatAllIn[%seat])
             {
-                %this.chatMessagePlayers("\c4" @ %this.seatName[%seat] SPC "\c3goes all in\c4!");
+                %this.chatMessageToPlayers("\c4" @ %this.seatName[%seat] SPC "\c3goes all in\c4!");
                 %this.seatAllIn[%seat] = true;
                 %this.playersAllIn++;
             }
@@ -453,12 +456,12 @@ function EventGame_TexasHoldem::makeRaise(%this,%seat,%value)
         {
              if(%value == 0)
             {
-                %this.chatMessagePlayers("\c4" @ %this.seatName[%seat] SPC "\c1calls\c4");
+                %this.chatMessageToPlayers("\c4" @ %this.seatName[%seat] SPC "\c1calls\c4");
                 %this.consecutiveCalls++;
             }
             else
             {
-                %this.chatMessagePlayers("\c4" @ %this.seatName[%seat] SPC "\c2raises\c4 by" SPC %value);
+                %this.chatMessageToPlayers("\c4" @ %this.seatName[%seat] SPC "\c2raises\c4 by" SPC %value);
                 %this.consecutiveCalls = 0;
             }
         }
@@ -475,7 +478,7 @@ function EventGame_TexasHoldem::makeRaise(%this,%seat,%value)
 
 function EventGame_TexasHoldem::SeatFold(%this,%seat)
 {
-    %this.chatMessagePlayers("\c4" @ %this.seatName[%seat] SPC "\c0folds\c4!");
+    %this.chatToMessagePlayers("\c4" @ %this.seatName[%seat] SPC "\c0folds\c4!");
     %this.seatFolded[%seat] = true;
     %this.playersInHand--;
     %this.gameBrickFunction("hand" @ %seat, "removeBrickCard");

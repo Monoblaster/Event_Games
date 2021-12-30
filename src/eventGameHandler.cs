@@ -78,9 +78,9 @@ function EventGameHandler::EndGame(%this,%group,%gameName,%parameters,%brick,%cl
         %count = %game.playerCount;
         for(%j = 0; %j < %count; %j++)
         {
-            %currClient = %game.player[%j];
+            %currClient = %game.getIndexPlayer(%j);
             %currClient.currEventGame = "";
-            %this.DoCommand(%group,%gameName,"RemovePlayer","",%brick,%currClient);
+            EventGameHandler.DoCommand(%group,%gameName,"RemovePlayer","",%brick,%currClient);
         }
         $Server::EventGame::Game[%group.class,%gameName] = "";
         %game.delete();

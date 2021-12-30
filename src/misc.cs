@@ -167,6 +167,7 @@ package EventGames
                     $Server::EventGame::FunctionList[%name,%functionlistCount++ - 1] = %functionName;
                 }
             }
+
             %evalString = "";
             %evalString = %evalString @ "function fxDTSBrick::EventGame" @ %gameName @ "(%brick,%gameName,%gameCommand,%parameters,%client)";
             %evalString = %evalString @ "{";
