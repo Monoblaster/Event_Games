@@ -78,7 +78,6 @@ function EventGameHandler::EndGame(%this,%group,%gameName,%parameters,%brick,%cl
         %count = %game.playerCount;
         for(%j = %count - 1; %j >= 0; %j--)
         {
-            talk(%j);
             %currClient = %game.getIndexPlayer(%j);
             %currClient.currEventGame = "";
             EventGameHandler.DoCommand(%group,%gameName,"RemovePlayer","",%brick,%currClient);

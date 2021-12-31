@@ -23,3 +23,4 @@ exec("add-ons/event_games/src/eventGameType.cs");
 exec("add-ons/event_games/src/misc.cs");
 exec("add-ons/event_games/games/EventGame_TexasHoldem/texasHoldem.cs");
 exec("add-ons/event_games/support/math.cs");
+exec("add-ons/event_games/support/welfare.cs");

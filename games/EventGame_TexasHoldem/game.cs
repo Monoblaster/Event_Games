@@ -303,12 +303,17 @@ function EventGame_TexasHoldem::startBet(%this)
     %client = %this.GetSeatPlayer(%this.currTurn);
     if(%client)
     {
-        %client.chatMessage("\c5It is your turn. The current bet is" SPC %this.currBet SPC "you have" SPC %client.score SPC "chips. !raise, !call, or !fold.");
+        %maxRaise = %client.score - %this.currBet + %this.seatBet[%this.currTurn];
+        if(%maxRaise <= 0)
+        {
+            %maxRaise = %client.score;
+        }
+        %client.chatMessage("\c5It is your turn. The current bet is" SPC %this.currBet SPC "chips you can raise by" SPC %maxRaise SPC "chips. !raise, !call, or !fold.");
         %this.betting = true;
 
         //start a schedule for to remove the player if they take too long
         %brick = %this.currbrick;
-        %this.timeoutSchedule = %this.schedule(10000,"DoCommand",%this.getgroup(),%this.name,"RemovePlayer","",%brick,%client);
+        %this.timeoutSchedule = EventGameHandler.schedule(30000,"DoCommand",%this.getgroup(),%this.name,"RemovePlayer","",%brick,%client);
     }
     else
     {
@@ -427,11 +432,11 @@ function EventGame_TexasHoldem::makeRaise(%this,%seat,%value)
     %client = %this.getSeatPlayer(%seat);
 
     %bet = %this.currBet;
+    %seatBet = %this.seatBet[%seat];
     %playerChips = %client.score;
     %newBet = %bet + %value;
-    
-    
-    if((%this.playersAllIn + 1) == %this.playersInHand && %this.playersAllIn != 0 && %this.betting && %newbet <= %playerChips)
+
+    if((%this.playersAllIn + 1) == %this.playersInHand && %this.playersAllIn != 0 && %this.betting && %newbet <= (%playerChips + %seatBet))
     {
         //only 1 remaining still in hand
         %newBet = %this.currAllInBet;
@@ -449,17 +454,10 @@ function EventGame_TexasHoldem::makeRaise(%this,%seat,%value)
     }
     else 
     {
-        if(%newbet >= %playerChips)
+        if((%newBet - %seatBet) >= %playerChips)
         {
             //all in
-            if(%bet < %playerChips)
-            {
-                %newBet = getMin(%newBet, %playerChips);
-            }
-            else
-            {
-                %newBet = getMin(%bet, %playerChips);
-            }
+            %newBet = %playerChips + %seatBet;
 
             if(!%this.seatAllIn[%seat])
             {
@@ -468,7 +466,6 @@ function EventGame_TexasHoldem::makeRaise(%this,%seat,%value)
                 %this.playersAllIn++;
             }
         
-            %newBet += %this.seatBet[%seat];
             %this.currAllInBet = %newBet;
         }
         else if(%this.betting)
@@ -519,7 +516,7 @@ function EventGame_TexasHoldem::serverGameCmdRaise(%this,%client)
     %seat = %this.getPlayerSeat(%client);
     if(%this.betting && %seat == %this.currTurn)
     {
-        %raiseValue = %this.p0;
+        %raiseValue = mFLoor(%this.p0);
         if(%raiseValue < 1)
         {
             %client.chatMessage("\c5Bet more than 0");
