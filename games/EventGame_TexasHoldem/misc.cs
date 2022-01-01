@@ -185,7 +185,7 @@ function fxDTSBrick::placeBrickCard(%brick, %slot, %card, %down)
 		%cardShape.playThread(0, cardFaceDown);
 	}
 
-	%cardShape.down[%slot] = %down;
+	%cardShape.down = %down;
 
 	cardDisplay(%cardShape, getCardName(%card));
     //disables card flipping

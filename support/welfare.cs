@@ -1,43 +1,49 @@
-$Pref::NYWelfare::Ammount = 10;
+$Pref::NYWelfare::Ammount = 20;
 $Pref::NYWelfare::Time = 60000;
-
-$NYwelfareSchedule = shcedule(10000,0,"NY2022WelfareCheck");
+cancel($NYwelfareSchedule);
+$NYwelfareSchedule = schedule(10000,0,"NYWelfareCheck");
 
 package NY2022WelfareCheck
 {
     function NY2022WelfareCheck()
     {
-        cancel($NYwelfareSchedule);
-
-        %clientCount = clientGroup.getCount();
-        
-
-        for(%i = 0; %i < %clientCount; %i++)
-        {
-            %client = clientGroup.getObject(%i);
-            NY2022WelfareGiveWelfare(%client);
-        }
-
-        $NYwelfareSchedule = shcedule($Pref::NYWelfare::Time,0,"NY2022WelfareCheck");
+        talk("suck");
     }
 
-    function NY2022WelfareGiveWelfare(%client)
+    function NYWelfareCheck()
     {
-        %score = %client.score;
-        %ammount = $Pref::NYWelfare::Ammount;
+    cancel($NYwelfareSchedule);
 
-        if(%score < %ammount)
-        {
-            %client.chatMessage("\c2You have recieved welafare for being broke. (" @ %ammount @ " points)");
-            %client.setScore(%ammount);
-        }
+    %clientCount = clientGroup.getCount();
+
+
+    for(%i = 0; %i < %clientCount; %i++)
+    {
+        %client = clientGroup.getObject(%i);
+        NY2022WelfareGiveWelfare(%client);
     }
+
+    $NYwelfareSchedule = schedule($Pref::NYWelfare::Time,0,"NYWelfareCheck");
+    }
+
+    function NYWelfareGiveWelfare(%client)
+    {
+    %score = %client.score;
+    %ammount = $Pref::NYWelfare::Ammount;
+
+    if(%score < %ammount)
+    {
+        %client.chatMessage("\c2You have recieved welfare for being broke. (" @ %ammount @ " points)");
+        %client.setScore(%ammount);
+    }
+    }
+
 
     function GameConnection::spawnPlayer(%client)
     {
         if(!%client.hasSpawnedOnce)
         {
-            NY2022WelfareGiveWelfare(%client);
+            NYWelfareGiveWelfare(%client);
         }
         
         return parent::spawnPlayer(%client);

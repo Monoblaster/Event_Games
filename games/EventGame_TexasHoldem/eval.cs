@@ -231,6 +231,7 @@ function EventGame_TexasHoldem::IsHandABetter(%this,%a,%b)
             }
         }
     }
+    return 0;
 }
 
 function EventGame_TexasHoldem::SortHands(%this)
@@ -242,12 +243,17 @@ function EventGame_TexasHoldem::SortHands(%this)
         if(%this.seatInHand[%i] && !%this.seatFolded[%i])
         {
             %value = %this.bestHand[%i];
-
+            %tie = false;
             for(%j = 0; %j < %sortedCount; %j++)
             {
                 %valueS = %sorted[%j];
                 if(%this.IsHandABetter(%value,%valueS))
                 {
+                    break;
+                }
+                else
+                {
+                    %tie = true;
                     break;
                 }
             }
@@ -258,9 +264,12 @@ function EventGame_TexasHoldem::SortHands(%this)
             %insSeat = %i;
             for(%k = %j; %k < %sortedCount; %k++)
             {
-                %temp = %sorted[%k];
+                %temp = %sortedHistogram[%k];
                 %sortedHistogram[%k] = %ins;
                 %ins = %temp;
+                %temp = %sortedTie[%k];
+                %sortedTie[%k] = %tie;
+                %tie = %temp;
                 %temp = %sortedSeat[%k];
                 %sortedSeat[%k] = %insSeat;
                 %insSeat = %temp;
